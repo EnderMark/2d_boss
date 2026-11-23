@@ -327,8 +327,28 @@ class BossBattleEngine(
                     boss.facingDir = if (dx >= 0f) 1 else -1
                 }
                 val speed = level.bossBaseSpeed * if (boss.isEnraged) 1.35f else 1f
-                if (abs(dx) > boss.radius + player.radius + 55f) {
-                    boss.x += boss.facingDir * speed * dt
+                when (level.arenaTheme) {
+                    // Louise: seduces from mid-range, then avoids/retreats when you get close!
+                    ArenaTheme.PARIS -> {
+                        val avoidDist = boss.radius + player.radius + 145f
+                        if (abs(dx) < avoidDist) {
+                            val awayDir = if (dx >= 0f) -1 else 1
+                            boss.x += awayDir * speed * 1.15f * dt
+                        } else if (abs(dx) > avoidDist + 120f) {
+                            boss.x += boss.facingDir * speed * 0.7f * dt
+                        }
+                    }
+                    // Andrea Dattero: approaches aggressively for grappling!
+                    ArenaTheme.GYM_DEV -> {
+                        if (abs(dx) > boss.radius + player.radius + 10f) {
+                            boss.x += boss.facingDir * speed * 1.15f * dt
+                        }
+                    }
+                    else -> {
+                        if (abs(dx) > boss.radius + player.radius + 55f) {
+                            boss.x += boss.facingDir * speed * dt
+                        }
+                    }
                 }
                 boss.x = boss.x.coerceIn(minX, maxX)
 
@@ -352,6 +372,10 @@ class BossBattleEngine(
                         ArenaTheme.HANOI -> spawnChanLanternAttack()
                         ArenaTheme.ZURICH -> spawnLolloComplaintAttack()
                         ArenaTheme.STUDIO -> spawnIvanoneDroneAttack()
+                        ArenaTheme.ZURICH_TAX -> spawnAlessioTaxAttack()
+                        ArenaTheme.PARIS -> spawnLouiseSeductionAttack()
+                        ArenaTheme.UBS_ALPS -> spawnDaisyScreamAttack()
+                        ArenaTheme.GYM_DEV -> spawnAndreaRiceAndDevAttack()
                         else -> spawnGroundShockwaves()
                     }
                     boss.action = BossAction.PATROL
@@ -367,26 +391,50 @@ class BossBattleEngine(
                 boss.facingDir = if (player.x >= boss.x) 1 else -1
                 boss.actionTimer -= dt
                 if (boss.actionTimer <= 0f) {
-                    if (level.arenaTheme == ArenaTheme.STUDIO) {
-                        spawnIvanoneCameraAttack()
-                        triggerBossVanish()
-                    } else {
-                        boss.action = BossAction.CHARGING
-                        boss.actionTimer = 0.65f
+                    when (level.arenaTheme) {
+                        ArenaTheme.STUDIO -> {
+                            spawnIvanoneCameraAttack()
+                            triggerBossVanish()
+                        }
+                        ArenaTheme.ZURICH_TAX -> {
+                            spawnAlessioWeirdToothAttack()
+                            boss.action = BossAction.PATROL
+                            boss.attackCooldown = if (boss.isEnraged) {
+                                level.bossEnragedAttackInterval
+                            } else {
+                                level.bossAttackInterval
+                            }
+                        }
+                        ArenaTheme.PARIS -> {
+                            // Louise dodges away / darts across to avoid you, leaving a teasing heart
+                            spawnLouiseTeaseHeart()
+                            val awayDir = if (player.x >= boss.x) -1 else 1
+                            val nearEdge = (awayDir < 0 && boss.x < state.worldWidth * 0.30f) ||
+                                (awayDir > 0 && boss.x > state.worldWidth * 0.70f)
+                            boss.facingDir = if (nearEdge) -awayDir else awayDir
+                            boss.action = BossAction.CHARGING
+                            boss.actionTimer = 0.52f
+                        }
+                        else -> {
+                            boss.action = BossAction.CHARGING
+                            boss.actionTimer = 0.65f
+                        }
                     }
                 }
             }
 
             BossAction.CHARGING -> {
-                val baseCharge = if (level.arenaTheme == ArenaTheme.HANOI) {
-                    CHAN_CHARGE_SPEED
-                } else {
-                    BOSS_CHARGE_SPEED
+                val baseCharge = when (level.arenaTheme) {
+                    ArenaTheme.HANOI -> CHAN_CHARGE_SPEED
+                    ArenaTheme.PARIS -> LOUISE_EVADE_SPEED
+                    ArenaTheme.GYM_DEV -> ANDREA_GRAPPLE_SPEED
+                    else -> BOSS_CHARGE_SPEED
                 }
-                val enragedCharge = if (level.arenaTheme == ArenaTheme.HANOI) {
-                    CHAN_ENRAGED_CHARGE_SPEED
-                } else {
-                    BOSS_ENRAGED_CHARGE_SPEED
+                val enragedCharge = when (level.arenaTheme) {
+                    ArenaTheme.HANOI -> CHAN_ENRAGED_CHARGE_SPEED
+                    ArenaTheme.PARIS -> LOUISE_ENRAGED_EVADE_SPEED
+                    ArenaTheme.GYM_DEV -> ANDREA_ENRAGED_GRAPPLE_SPEED
+                    else -> BOSS_ENRAGED_CHARGE_SPEED
                 }
                 val chargeSpeed = if (boss.isEnraged) enragedCharge else baseCharge
                 boss.x += boss.facingDir * chargeSpeed * dt
@@ -740,6 +788,181 @@ class BossBattleEngine(
         }
     }
 
+    private fun spawnAlessioTaxAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.18, baseAngle, baseAngle + 0.16)
+        } else {
+            listOf(baseAngle, baseAngle - 0.14)
+        }
+        spawnHitParticles(boss.x, boss.y - 24f, COLOR_SHIELD_BLOCK_SPARK, 8)
+        for (angle in angles) {
+            val line = ALESSIO_TAX_LINES[complaintIndex % ALESSIO_TAX_LINES.size]
+            complaintIndex += 1
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.45f),
+                    y = boss.y - 18f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.TAX_FORM,
+                    label = line
+                )
+            )
+        }
+    }
+
+    private fun spawnAlessioWeirdToothAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = (if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed) * 1.18f
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) listOf(baseAngle - 0.14, baseAngle + 0.14) else listOf(baseAngle)
+        spawnHitParticles(boss.x + boss.facingDir * 24f, boss.y - 28f, COLOR_BOSS_HIT_SPARK, 12)
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.5f),
+                    y = boss.y - 24f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 30f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.WEIRD_TOOTH,
+                    label = "DENTE STRANO!"
+                )
+            )
+        }
+    }
+
+    private fun spawnLouiseSeductionAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.22, baseAngle, baseAngle + 0.22)
+        } else {
+            listOf(baseAngle - 0.10, baseAngle + 0.10)
+        }
+        spawnHitParticles(boss.x, boss.y - 20f, COLOR_LOUISE_PINK, 10)
+        for (angle in angles) {
+            val line = LOUISE_LINES[complaintIndex % LOUISE_LINES.size]
+            complaintIndex += 1
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.4f),
+                    y = boss.y - 18f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 22f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.HEART,
+                    label = line
+                )
+            )
+        }
+    }
+
+    private fun spawnLouiseTeaseHeart() {
+        val boss = state.boss
+        val player = state.player
+        val angle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val speed = level.bossProjectileSpeed * 0.85f
+        spawnHitParticles(boss.x, boss.y - 14f, COLOR_LOUISE_PINK, 8)
+        state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y - 16f,
+                vx = (cos(angle) * speed).toFloat(),
+                vy = (sin(angle) * speed).toFloat(),
+                radius = 22f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.HEART,
+                label = "Non, merci~"
+            )
+        )
+    }
+
+    private fun spawnDaisyScreamAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.20, baseAngle, baseAngle + 0.18)
+        } else {
+            listOf(baseAngle, baseAngle - 0.14)
+        }
+        spawnHitParticles(boss.x, boss.y - 26f, COLOR_VICTORY_SPARK, 10)
+        for (angle in angles) {
+            val line = DAISY_SCREAMS[complaintIndex % DAISY_SCREAMS.size]
+            complaintIndex += 1
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.45f),
+                    y = boss.y - 22f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 26f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.SCREAM_WAVE,
+                    label = line
+                )
+            )
+        }
+    }
+
+    private fun spawnAndreaRiceAndDevAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val devLine = ANDREA_DEV_LINES[complaintIndex % ANDREA_DEV_LINES.size]
+        complaintIndex += 1
+
+        spawnHitParticles(boss.x, boss.y - 16f, COLOR_BOSS_HIT_SPARK, 8)
+        // 200g rice & chicken meal-prep bowl
+        state.projectiles.add(
+            Projectile(
+                x = boss.x + boss.facingDir * (boss.radius * 0.45f),
+                y = boss.y - 12f,
+                vx = (cos(baseAngle) * speed).toFloat(),
+                vy = (sin(baseAngle) * speed).toFloat(),
+                radius = 24f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.RICE_CHICKEN,
+                label = "200g RISO & POLLO"
+            )
+        )
+        // Overconfident (bad) software engineer boast
+        val boastAngle = baseAngle - 0.16
+        state.projectiles.add(
+            Projectile(
+                x = boss.x + boss.facingDir * (boss.radius * 0.4f),
+                y = boss.y - 34f,
+                vx = (cos(boastAngle) * speed * 0.92f).toFloat(),
+                vy = (sin(boastAngle) * speed * 0.92f).toFloat(),
+                radius = 24f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.COMPLAINT,
+                label = devLine
+            )
+        )
+    }
+
     private fun spawnGroundShockwaves() {
         val boss = state.boss
         val speed = if (boss.isEnraged) {
@@ -828,6 +1051,10 @@ class BossBattleEngine(
             ArenaTheme.HANOI -> 64f
             ArenaTheme.ZURICH -> 66f
             ArenaTheme.STUDIO -> 74f
+            ArenaTheme.ZURICH_TAX -> 68f
+            ArenaTheme.PARIS -> 62f
+            ArenaTheme.UBS_ALPS -> 64f
+            ArenaTheme.GYM_DEV -> 58f
             ArenaTheme.IRON_ARENA -> 84f
             ArenaTheme.SPACE -> 88f
         }
@@ -888,6 +1115,10 @@ class BossBattleEngine(
         private const val BOSS_ENRAGED_CHARGE_SPEED = 900f
         private const val CHAN_CHARGE_SPEED = 820f
         private const val CHAN_ENRAGED_CHARGE_SPEED = 980f
+        private const val LOUISE_EVADE_SPEED = 860f
+        private const val LOUISE_ENRAGED_EVADE_SPEED = 1020f
+        private const val ANDREA_GRAPPLE_SPEED = 840f
+        private const val ANDREA_ENRAGED_GRAPPLE_SPEED = 980f
         private const val BOSS_HIT_FLASH_DURATION = 0.08f
         private const val BOSS_HP_TRAIL_SPEED = 32f
         private const val SPREAD_ANGLE_RAD = 0.28
@@ -909,6 +1140,39 @@ class BossBattleEngine(
             "QUANTO COSTA?!"
         )
 
+        val ALESSIO_TAX_LINES = listOf(
+            "PAGA LE TASSE A ZURIGO!",
+            "SONO MIGLIORE DI TE!",
+            "IO GUADAGNO DI PIÙ!",
+            "MODULO FISCALE CHF!",
+            "VITA SUPERIORE!",
+            "TU NON CE LA FAI!"
+        )
+
+        val LOUISE_LINES = listOf(
+            "Viens ici~",
+            "Mon chéri~",
+            "Regarde-moi...",
+            "Trop mignon~"
+        )
+
+        val DAISY_SCREAMS = listOf(
+            "NON MI INVITI ALLE HIKE!",
+            "LAVORO A UBS IO!",
+            "ANDATE SENZA DI ME?!",
+            "OHHH! SENTIMI!",
+            "DOMENICA HIKE SENZA DI ME?!",
+            "PERCHÉ NON MI CHIAMI?!"
+        )
+
+        val ANDREA_DEV_LINES = listOf(
+            "SONO UN 10X ENGINEER!",
+            "CODICE PERFETTO! (crash)",
+            "NULL POINTER EXCEPTION!",
+            "DEPLOY ROTTO IN PROD!",
+            "NON COMPILA MA FIDATI!"
+        )
+
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()
         const val COLOR_VICTORY_SPARK = 0xFFFF7043.toInt()
         const val COLOR_PLAYER_HIT_SPARK = 0xFF4FC3F7.toInt()
@@ -916,5 +1180,6 @@ class BossBattleEngine(
         const val COLOR_DOUBLE_JUMP_SPARK = 0xFF80DEEA.toInt()
         const val COLOR_SHIELD_BLOCK_SPARK = 0xFFFFE082.toInt()
         const val COLOR_VANISH_SMOKE = 0xFFCFD8DC.toInt()
+        const val COLOR_LOUISE_PINK = 0xFFF48FB1.toInt()
     }
 }

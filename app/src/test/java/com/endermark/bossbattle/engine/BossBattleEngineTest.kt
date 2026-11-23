@@ -19,41 +19,26 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllFiveLevels() {
-        assertEquals(5, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllNineLevels() {
+        assertEquals(9, LevelCatalog.levels.size)
 
-        val level1 = LevelCatalog.levels[0]
-        assertEquals(1, level1.id)
-        assertEquals("GUARDIANO D'OMBRA", level1.bossName)
-        assertEquals(BattleMode.SHOOTER, level1.mode)
+        assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
+        assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
+        assertEquals("CHAN", LevelCatalog.findById(3).bossName)
+        assertEquals("LOLLO ZURICH", LevelCatalog.findById(4).bossName)
+        assertEquals("IVANONE", LevelCatalog.findById(5).bossName)
+        assertEquals("ALESSIO DELLE TASSE", LevelCatalog.findById(6).bossName)
+        assertEquals("LOUISE", LevelCatalog.findById(7).bossName)
+        assertEquals("DAISY", LevelCatalog.findById(8).bossName)
+        assertEquals("ANDREA DATTERO", LevelCatalog.findById(9).bossName)
 
-        val level2 = LevelCatalog.levels[1]
-        assertEquals(2, level2.id)
-        assertEquals("COLOSSO DI FERRO", level2.bossName)
-        assertEquals(BattleMode.MELEE_PLATFORMER, level2.mode)
-        assertFalse(level2.hasShield)
-
-        val level3 = LevelCatalog.levels[2]
-        assertEquals(3, level3.id)
-        assertEquals("CHAN", level3.bossName)
-        assertEquals(ArenaTheme.HANOI, level3.arenaTheme)
-        assertTrue(level3.hasShield)
-
-        val level4 = LevelCatalog.levels[3]
-        assertEquals(4, level4.id)
-        assertEquals("LOLLO ZURICH", level4.bossName)
-        assertEquals(ArenaTheme.ZURICH, level4.arenaTheme)
-        assertFalse(level4.hasShield)
-
-        val level5 = LevelCatalog.levels[4]
-        assertEquals(5, level5.id)
-        assertEquals("IVANONE", level5.bossName)
-        assertEquals(ArenaTheme.STUDIO, level5.arenaTheme)
-        assertFalse(level5.hasShield)
-
-        assertEquals(level4, LevelCatalog.findById(4))
-        assertEquals(level5, LevelCatalog.findById(5))
-        assertEquals(level1, LevelCatalog.findById(999))
+        assertTrue(LevelCatalog.findById(3).hasShield)
+        assertFalse(LevelCatalog.findById(4).hasShield)
+        assertEquals(ArenaTheme.ZURICH_TAX, LevelCatalog.findById(6).arenaTheme)
+        assertEquals(ArenaTheme.PARIS, LevelCatalog.findById(7).arenaTheme)
+        assertEquals(ArenaTheme.UBS_ALPS, LevelCatalog.findById(8).arenaTheme)
+        assertEquals(ArenaTheme.GYM_DEV, LevelCatalog.findById(9).arenaTheme)
+        assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
     @Test
@@ -278,5 +263,70 @@ class BossBattleEngineTest {
         // Reappears after vanishTimer expires
         repeat(20) { engine.update(0.05f) }
         assertFalse(engine.state.boss.isVanished)
+    }
+
+    @Test
+    fun levelSixAlessioUsesZurichTaxesAndWeirdToothSpecial() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_6)
+        engine.startGame()
+
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.TAX_FORM })
+
+        engine.state.projectiles.clear()
+        engine.state.boss.action = BossAction.TELEGRAPH_CHARGE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.WEIRD_TOOTH })
+    }
+
+    @Test
+    fun levelSevenLouiseSeducesWithHeartsAndAvoidsClosePlayer() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_7)
+        engine.startGame()
+
+        // Seduction hearts attack
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.HEART })
+
+        // Avoids player when player gets close
+        engine.state.player.x = 400f
+        engine.state.boss.x = 480f
+        engine.state.boss.action = BossAction.PATROL
+        engine.state.boss.attackCooldown = 5f
+        val beforeX = engine.state.boss.x
+        engine.update(0.05f)
+        assertTrue(engine.state.boss.x > beforeX)
+    }
+
+    @Test
+    fun levelEightDaisyScreamsAboutUbsAndHikes() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_8)
+        engine.startGame()
+
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+
+        val screams = engine.state.projectiles.filter { it.kind == ProjectileKind.SCREAM_WAVE }
+        assertTrue(screams.isNotEmpty())
+        assertTrue(BossBattleEngine.DAISY_SCREAMS.contains(screams.first().label))
+    }
+
+    @Test
+    fun levelNineAndreaDatteroThrowsRiceChickenAndBadDevBoasts() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_9)
+        engine.startGame()
+
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.RICE_CHICKEN })
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
     }
 }

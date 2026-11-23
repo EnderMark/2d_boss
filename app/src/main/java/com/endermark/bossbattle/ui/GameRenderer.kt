@@ -495,7 +495,11 @@ class GameRenderer {
         when (state.level.arenaTheme) {
             ArenaTheme.HANOI -> drawHanoiBackground(canvas, state)
             ArenaTheme.ZURICH -> drawZurichBackground(canvas, state)
+            ArenaTheme.ZURICH_TAX -> drawZurichTaxBackground(canvas, state)
             ArenaTheme.STUDIO -> drawStudioBackground(canvas, state)
+            ArenaTheme.PARIS -> drawParisBackground(canvas, state)
+            ArenaTheme.UBS_ALPS -> drawUbsAlpsBackground(canvas, state)
+            ArenaTheme.GYM_DEV -> drawGymDevBackground(canvas, state)
             else -> drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
         }
         if (isMelee) {
@@ -511,6 +515,10 @@ class GameRenderer {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.ZURICH_TAX -> drawAlessioTaxBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.PARIS -> drawLouiseBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.UBS_ALPS -> drawDaisyBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.GYM_DEV -> drawAndreaDatteroBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.IRON_ARENA -> drawMeleeBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.SPACE -> drawShooterBoss(canvas, state.boss, state.elapsedTime)
             }
@@ -1180,6 +1188,81 @@ class GameRenderer {
                     canvas.drawLine(x, y - r * 1.2f, x, y + r * 1.2f, cameraFlashInnerPaint)
                     canvas.drawCircle(x, y, r * 0.55f, cameraFlashInnerPaint)
                 }
+                ProjectileKind.TAX_FORM -> {
+                    val text = projectile.label ?: "TASSE CHF!"
+                    val halfW = (speechBubbleTextPaint.measureText(text) / 2f + 22f).coerceAtLeast(82f)
+                    val halfH = 28f
+                    tempRect.set(
+                        projectile.x - halfW,
+                        projectile.y - halfH,
+                        projectile.x + halfW,
+                        projectile.y + halfH
+                    )
+                    canvas.drawRoundRect(tempRect, 10f, 10f, speechBubbleBgPaint)
+                    canvas.drawRoundRect(tempRect, 10f, 10f, controlShieldBorderPaint)
+                    canvas.drawText(text, projectile.x, projectile.y + 8f, speechBubbleTextPaint)
+                }
+                ProjectileKind.WEIRD_TOOTH -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    // Giant weird crooked tooth!
+                    tempPath.reset()
+                    tempPath.moveTo(x - r * 0.7f, y - r * 0.8f)
+                    tempPath.lineTo(x + r * 0.75f, y - r * 0.65f)
+                    tempPath.lineTo(x + r * 0.5f, y + r * 0.9f)
+                    tempPath.lineTo(x + r * 0.05f, y + r * 0.35f)
+                    tempPath.lineTo(x - r * 0.45f, y + r * 0.95f)
+                    tempPath.close()
+                    canvas.drawPath(tempPath, swissCrossWhitePaint)
+                    canvas.drawPath(tempPath, controlShieldBorderPaint)
+                }
+                ProjectileKind.HEART -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    val heartPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.parseColor("#EC407A")
+                        style = Paint.Style.FILL
+                    }
+                    canvas.drawCircle(x - r * 0.38f, y - r * 0.2f, r * 0.52f, heartPaint)
+                    canvas.drawCircle(x + r * 0.38f, y - r * 0.2f, r * 0.52f, heartPaint)
+                    tempPath.reset()
+                    tempPath.moveTo(x - r * 0.85f, y - r * 0.05f)
+                    tempPath.lineTo(x, y + r * 0.95f)
+                    tempPath.lineTo(x + r * 0.85f, y - r * 0.05f)
+                    tempPath.close()
+                    canvas.drawPath(tempPath, heartPaint)
+                    projectile.label?.let { text ->
+                        canvas.drawText(text, x, y - r - 10f, phaseBadgePaint)
+                    }
+                }
+                ProjectileKind.SCREAM_WAVE -> {
+                    val text = projectile.label ?: "OHHH!"
+                    val halfW = (speechBubbleTextPaint.measureText(text) / 2f + 26f).coerceAtLeast(90f)
+                    val halfH = 30f
+                    tempRect.set(
+                        projectile.x - halfW,
+                        projectile.y - halfH,
+                        projectile.x + halfW,
+                        projectile.y + halfH
+                    )
+                    canvas.drawRoundRect(tempRect, 20f, 20f, shockwaveCorePaint)
+                    canvas.drawRoundRect(tempRect, 20f, 20f, speechBubbleBorderPaint)
+                    canvas.drawText(text, projectile.x, projectile.y + 8f, speechBubbleTextPaint)
+                }
+                ProjectileKind.RICE_CHICKEN -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    // Meal-prep bowl with white rice + golden chicken chunks
+                    tempRect.set(x - r * 1.15f, y - r * 0.2f, x + r * 1.15f, y + r * 0.95f)
+                    canvas.drawRoundRect(tempRect, 14f, 14f, droneBodyPaint)
+                    canvas.drawCircle(x - 10f, y - 6f, 13f, swissCrossWhitePaint)
+                    canvas.drawCircle(x + 10f, y - 6f, 13f, swissCrossWhitePaint)
+                    canvas.drawCircle(x, y - 10f, 10f, hanoiLanternGoldPaint)
+                    canvas.drawText("200g", x, y + r * 0.55f, speechBubbleTextPaint)
+                }
                 ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
                     canvas.drawCircle(
@@ -1191,6 +1274,261 @@ class GameRenderer {
                 }
             }
         }
+    }
+
+    private fun drawZurichTaxBackground(canvas: Canvas, state: GameState) {
+        drawZurichBackground(canvas, state)
+        // Golden "TAX CHF" badge on the skyline
+        tempRect.set(60f, 205f, 280f, 270f)
+        canvas.drawRoundRect(tempRect, 12f, 12f, zurichCityPaint)
+        canvas.drawRoundRect(tempRect, 12f, 12f, controlShieldBorderPaint)
+        canvas.drawText("TAX CHF", 170f, 248f, controlLabelPaint)
+    }
+
+    private fun drawParisBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#1D1433"),
+                Color.parseColor("#4A235A"),
+                Color.parseColor("#9B4B6B")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Eiffel Tower silhouette
+        val cx = state.worldWidth * 0.5f
+        val baseY = state.groundY
+        tempPath.reset()
+        tempPath.moveTo(cx - 150f, baseY)
+        tempPath.lineTo(cx - 26f, baseY - 520f)
+        tempPath.lineTo(cx + 26f, baseY - 520f)
+        tempPath.lineTo(cx + 150f, baseY)
+        tempPath.lineTo(cx + 80f, baseY)
+        tempPath.lineTo(cx, baseY - 140f)
+        tempPath.lineTo(cx - 80f, baseY)
+        tempPath.close()
+        canvas.drawPath(tempPath, hanoiSilhouettePaint)
+        canvas.drawLine(cx, baseY - 520f, cx, baseY - 600f, hanoiGroundLinePaint)
+    }
+
+    private fun drawUbsAlpsBackground(canvas: Canvas, state: GameState) {
+        drawZurichBackground(canvas, state)
+        // UBS red badge & Hike signpost
+        tempRect.set(64f, 205f, 224f, 270f)
+        canvas.drawRoundRect(tempRect, 12f, 12f, hanoiLanternRedPaint)
+        canvas.drawText("UBS", 144f, 248f, controlLabelPaint)
+
+        tempRect.set(660f, 940f, 890f, 1000f)
+        canvas.drawRoundRect(tempRect, 10f, 10f, hanoiLanternGoldPaint)
+        canvas.drawText("HIKE ->", 775f, 980f, speechBubbleTextPaint)
+    }
+
+    private fun drawGymDevBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#121520"),
+                Color.parseColor("#1D2336"),
+                Color.parseColor("#2A2E45")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Dev monitor showing red syntax errors in background
+        tempRect.set(160f, 680f, 540f, 940f)
+        canvas.drawRoundRect(tempRect, 16f, 16f, zurichCityPaint)
+        canvas.drawRoundRect(tempRect, 16f, 16f, controlBorderPaint)
+        canvas.drawText("NullPointerException", 350f, 770f, phaseBadgePaint)
+        canvas.drawText("BUILD FAILED", 350f, 845f, bossNamePaint)
+
+        // 200g meal-prep kitchen scale
+        tempRect.set(640f, 860f, 860f, 940f)
+        canvas.drawRoundRect(tempRect, 14f, 14f, barBgPaint)
+        canvas.drawRoundRect(tempRect, 14f, 14f, controlShieldBorderPaint)
+        canvas.drawText("200g", 750f, 912f, controlLabelPaint)
+    }
+
+    private fun drawAlessioTaxBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.18f + 0.12f * sin(elapsedTime * 20f)), bossTelegraphPaint)
+        }
+
+        // Luxury navy suit & gold tie
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#1A237E")
+        tempRect.set(x - r * 0.56f, y - r * 0.28f, x + r * 0.56f, y + r * 0.96f)
+        canvas.drawRoundRect(tempRect, 18f, 18f, bossArmorPaint)
+        tempPath.reset()
+        tempPath.moveTo(x - 10f, y - r * 0.25f)
+        tempPath.lineTo(x + 10f, y - r * 0.25f)
+        tempPath.lineTo(x, y + r * 0.45f)
+        tempPath.close()
+        canvas.drawPath(tempPath, hanoiLanternGoldPaint)
+
+        // Head & hair
+        val headY = y - r * 0.68f
+        val headR = r * 0.40f
+        canvas.drawCircle(x, headY, headR, if (isHit) bossArmorPaint else skinPaint)
+        tempRect.set(x - headR, headY - headR * 1.05f, x + headR, headY - headR * 0.35f)
+        canvas.drawRoundRect(tempRect, 14f, 14f, chanHairPaint)
+
+        // Smug grin + THE WEIRD GIANT TOOTH!
+        if (!isHit) {
+            val dir = boss.facingDir.toFloat()
+            canvas.drawArc(
+                RectF(x - 16f, headY + 2f, x + 16f, headY + 22f),
+                10f,
+                160f,
+                false,
+                darkDetailPaint
+            )
+            // Oversized weird protruding tooth
+            tempPath.reset()
+            tempPath.moveTo(x + dir * 2f, headY + 12f)
+            tempPath.lineTo(x + dir * 18f, headY + 12f)
+            tempPath.lineTo(x + dir * 13f, headY + 34f)
+            tempPath.close()
+            canvas.drawPath(tempPath, swissCrossWhitePaint)
+            canvas.drawPath(tempPath, controlShieldBorderPaint)
+        }
+    }
+
+    private fun drawLouiseBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.2f + 0.12f * sin(elapsedTime * 20f)), bossTelegraphPaint)
+        }
+
+        // Flowing chestnut hair
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#5D4037")
+        tempRect.set(x - r * 0.46f, y - r * 0.85f, x + r * 0.46f, y + r * 0.16f)
+        canvas.drawRoundRect(tempRect, 22f, 22f, bossArmorPaint)
+
+        // Chic Parisian dress
+        bossCorePaint.color = if (isHit) Color.WHITE else Color.parseColor("#AD1457")
+        tempPath.reset()
+        tempPath.moveTo(x - r * 0.34f, y - r * 0.28f)
+        tempPath.lineTo(x + r * 0.34f, y - r * 0.28f)
+        tempPath.lineTo(x + r * 0.56f, y + r * 0.96f)
+        tempPath.lineTo(x - r * 0.56f, y + r * 0.96f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossCorePaint)
+
+        // Face + bright blue eyes!
+        val headY = y - r * 0.60f
+        canvas.drawCircle(x, headY, r * 0.32f, if (isHit) bossArmorPaint else skinPaint)
+        if (!isHit) {
+            canvas.drawCircle(x - 10f, headY - 4f, 5.5f, playerPaint)
+            canvas.drawCircle(x + 10f, headY - 4f, 5.5f, playerPaint)
+        }
+
+        // Chic red French beret
+        tempRect.set(x - r * 0.46f, headY - r * 0.44f, x + r * 0.36f, headY - r * 0.14f)
+        canvas.drawOval(tempRect, hanoiLanternRedPaint)
+    }
+
+    private fun drawDaisyBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.22f + 0.14f * sin(elapsedTime * 22f)), bossTelegraphPaint)
+        }
+
+        // Dark wavy hair
+        tempRect.set(x - r * 0.46f, y - r * 0.86f, x + r * 0.46f, y + r * 0.14f)
+        canvas.drawRoundRect(tempRect, 20f, 20f, chanHairPaint)
+
+        // Corporate UBS blazer + red lanyard
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#ECEFF1")
+        tempRect.set(x - r * 0.48f, y - r * 0.28f, x + r * 0.48f, y + r * 0.96f)
+        canvas.drawRoundRect(tempRect, 18f, 18f, bossArmorPaint)
+        canvas.drawLine(x - 12f, y - r * 0.28f, x, y + r * 0.22f, speechBubbleBorderPaint)
+        canvas.drawLine(x + 12f, y - r * 0.28f, x, y + r * 0.22f, speechBubbleBorderPaint)
+        tempRect.set(x - 14f, y + r * 0.18f, x + 14f, y + r * 0.42f)
+        canvas.drawRoundRect(tempRect, 4f, 4f, hanoiLanternRedPaint)
+
+        // Face + wide open screaming mouth!
+        val headY = y - r * 0.62f
+        canvas.drawCircle(x, headY, r * 0.34f, if (isHit) bossArmorPaint else skinPaint)
+        if (!isHit) {
+            canvas.drawLine(x - 14f, headY - 10f, x - 3f, headY - 4f, darkDetailPaint)
+            canvas.drawLine(x + 14f, headY - 10f, x + 3f, headY - 4f, darkDetailPaint)
+            val screamR = if (isTelegraphing || boss.action == BossAction.CHARGING) 14f else 9f
+            canvas.drawCircle(x, headY + 12f, screamR, mouthPaint)
+        }
+    }
+
+    private fun drawAndreaDatteroBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.22f + 0.12f * sin(elapsedTime * 20f)), bossTelegraphPaint)
+        }
+
+        // Very skinny legs!
+        canvas.drawLine(x - 10f, y + r * 0.35f, x - 14f, y + r * 0.98f, darkDetailPaint)
+        canvas.drawLine(x + 10f, y + r * 0.35f, x + 14f, y + r * 0.98f, darkDetailPaint)
+
+        // Oversized black MOSCHINO hoodie on a very skinny frame
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#111116")
+        tempRect.set(x - r * 0.52f, y - r * 0.36f, x + r * 0.52f, y + r * 0.46f)
+        canvas.drawRoundRect(tempRect, 18f, 18f, bossArmorPaint)
+        canvas.drawRoundRect(tempRect, 18f, 18f, controlShieldBorderPaint)
+
+        if (!isHit) {
+            val moschinoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#FFD54F")
+                textSize = 18f
+                textAlign = Paint.Align.CENTER
+                isFakeBoldText = true
+            }
+            canvas.drawText("MOSCHINO", x, y + 6f, moschinoPaint)
+        }
+
+        // Grappling arms reaching forward
+        val dir = boss.facingDir.toFloat()
+        canvas.drawLine(x + dir * 24f, y - 6f, x + dir * 56f, y - 10f, darkDetailPaint)
+
+        // Skinny head + hair
+        val headY = y - r * 0.72f
+        canvas.drawCircle(x, headY, r * 0.28f, if (isHit) bossArmorPaint else skinPaint)
+        tempRect.set(x - r * 0.30f, headY - r * 0.32f, x + r * 0.30f, headY - r * 0.06f)
+        canvas.drawRoundRect(tempRect, 10f, 10f, chanHairPaint)
     }
 
     private fun drawParticles(canvas: Canvas, state: GameState) {

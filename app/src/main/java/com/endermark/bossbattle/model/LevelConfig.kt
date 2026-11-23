@@ -10,7 +10,11 @@ enum class ArenaTheme {
     IRON_ARENA,
     HANOI,
     ZURICH,
-    STUDIO
+    STUDIO,
+    ZURICH_TAX,
+    PARIS,
+    UBS_ALPS,
+    GYM_DEV
 }
 
 data class BossLevel(
@@ -116,7 +120,85 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val levels: List<BossLevel> = listOf(LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4, LEVEL_5)
+    val LEVEL_6 = BossLevel(
+        id = 6,
+        title = "LIVELLO 6",
+        bossName = "ALESSIO DELLE TASSE",
+        subtitle = "Zurigo • Tasse, superiorità morale e lo strano dente",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.ZURICH_TAX,
+        hasShield = false,
+        bossMaxHp = 170,
+        bossBaseSpeed = 205f,
+        bossAttackInterval = 1.5f,
+        bossEnragedAttackInterval = 1.1f,
+        bossProjectileSpeed = 530f,
+        bossEnragedProjectileSpeed = 650f,
+        isUnlocked = true
+    )
+
+    val LEVEL_7 = BossLevel(
+        id = 7,
+        title = "LIVELLO 7",
+        bossName = "LOUISE",
+        subtitle = "Parigi • Occhi azzurri: ti seduce e poi ti evita",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.PARIS,
+        hasShield = false,
+        bossMaxHp = 175,
+        bossBaseSpeed = 265f,
+        bossAttackInterval = 1.45f,
+        bossEnragedAttackInterval = 1.05f,
+        bossProjectileSpeed = 520f,
+        bossEnragedProjectileSpeed = 640f,
+        isUnlocked = true
+    )
+
+    val LEVEL_8 = BossLevel(
+        id = 8,
+        title = "LIVELLO 8",
+        bossName = "DAISY",
+        subtitle = "UBS • Urla calabresi e lamentele per le hike mancate",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.UBS_ALPS,
+        hasShield = false,
+        bossMaxHp = 180,
+        bossBaseSpeed = 240f,
+        bossAttackInterval = 1.4f,
+        bossEnragedAttackInterval = 1.0f,
+        bossProjectileSpeed = 550f,
+        bossEnragedProjectileSpeed = 680f,
+        isUnlocked = true
+    )
+
+    val LEVEL_9 = BossLevel(
+        id = 9,
+        title = "LIVELLO 9",
+        bossName = "ANDREA DATTERO",
+        subtitle = "Felpa Moschino • Grappling, 200g riso e pollo e bug ovunque",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.GYM_DEV,
+        hasShield = false,
+        bossMaxHp = 190,
+        bossBaseSpeed = 275f,
+        bossAttackInterval = 1.35f,
+        bossEnragedAttackInterval = 0.98f,
+        bossProjectileSpeed = 540f,
+        bossEnragedProjectileSpeed = 660f,
+        isUnlocked = true
+    )
+
+    val levels: List<BossLevel> = listOf(
+        LEVEL_1,
+        LEVEL_2,
+        LEVEL_3,
+        LEVEL_4,
+        LEVEL_5,
+        LEVEL_6,
+        LEVEL_7,
+        LEVEL_8,
+        LEVEL_9
+    )
 
     fun findById(id: Int): BossLevel {
         return levels.firstOrNull { it.id == id } ?: LEVEL_1

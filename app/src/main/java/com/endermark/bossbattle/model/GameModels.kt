@@ -21,7 +21,12 @@ enum class ProjectileKind {
     LANTERN,
     COMPLAINT,
     DRONE,
-    CAMERA_FLASH
+    CAMERA_FLASH,
+    TAX_FORM,
+    WEIRD_TOOTH,
+    HEART,
+    SCREAM_WAVE,
+    RICE_CHICKEN
 }
 
 data class Player(
