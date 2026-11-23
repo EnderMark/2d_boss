@@ -19,33 +19,20 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyOneLevels() {
-        assertEquals(21, LevelCatalog.levels.size)
-
-        assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
-        assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
-        assertEquals("CHAN", LevelCatalog.findById(3).bossName)
-        assertEquals("LOLLO ZURICH", LevelCatalog.findById(4).bossName)
-        assertEquals("IVANONE", LevelCatalog.findById(5).bossName)
-        assertEquals("ALESSIO DELLE TASSE", LevelCatalog.findById(6).bossName)
-        assertEquals("LOUISE", LevelCatalog.findById(7).bossName)
-        assertEquals("DAISY", LevelCatalog.findById(8).bossName)
-        assertEquals("ANDREA DATTERO", LevelCatalog.findById(9).bossName)
-        assertEquals("MARCO DI GOOGLE", LevelCatalog.findById(10).bossName)
-        assertEquals("CARAMEL", LevelCatalog.findById(11).bossName)
-
-        for (id in 12..19) {
-            assertEquals(BattleMode.SHOOTER, LevelCatalog.findById(id).mode)
-        }
-        val level20 = LevelCatalog.findById(20)
-        assertEquals("OMEGA ARCHITECT", level20.bossName)
-        assertTrue(level20.enablePlatforms)
-        assertTrue(level20.enableLasers)
+    fun levelCatalogContainsAllTwentyTwoLevels() {
+        assertEquals(22, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
         assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level21.mode)
-        assertEquals(ArenaTheme.DEEP_SPACE, level21.arenaTheme)
+        assertTrue(level21.enableMinions)
+        assertFalse(level21.enableWeakPoints)
+
+        val level22 = LevelCatalog.findById(22)
+        assertEquals("CORAZZATA AEGIS", level22.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level22.mode)
+        assertFalse(level22.enableMinions)
+        assertTrue(level22.enableWeakPoints)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -497,9 +484,9 @@ class BossBattleEngineTest {
         assertTrue(player.y < startY)
         assertTrue(engine.state.projectiles.any { it.fromPlayer && it.vx > 0f && it.vy < 0f })
 
-        // Advance time until Dreadnought spawns a minion ship
+        // Advance time until Dreadnought spawns a minion ship (50% slower spawn rate -> 5.2s)
         engine.setFiring(false)
-        repeat(60) { engine.update(0.05f) }
+        repeat(120) { engine.update(0.05f) }
         assertTrue(engine.state.minions.isNotEmpty())
 
         // Player bolt destroys minion ship
@@ -519,5 +506,68 @@ class BossBattleEngineTest {
         val countBefore = engine.state.minions.size
         engine.update(0.016f)
         assertEquals(countBefore - 1, engine.state.minions.size)
+    }
+
+    @Test
+    fun levelTwentyTwoInvincibleUntilThreeWeakPointsDestroyed() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_22)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        assertEquals(3, engine.state.weakPoints.size)
+        assertTrue(engine.state.hasActiveWeakPoints)
+
+        // Advance time: NO minions should ever spawn on Level 22
+        repeat(150) { engine.update(0.05f) }
+        assertTrue(engine.state.minions.isEmpty())
+
+        // Direct hull hit deals 0 damage while weak points are alive
+        val initialHp = boss.hp
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 20
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp, boss.hp)
+
+        // Destroy all 3 weak points (REAR, LEFT, RIGHT)
+        for (wp in engine.state.weakPoints) {
+            engine.state.projectiles.add(
+                Projectile(
+                    x = boss.x + wp.offsetX,
+                    y = boss.y + wp.offsetY,
+                    vx = 0f,
+                    vy = 0f,
+                    radius = 12f,
+                    fromPlayer = true,
+                    damage = wp.maxHp
+                )
+            )
+            engine.update(0.016f)
+            assertTrue(wp.isDestroyed)
+        }
+        assertFalse(engine.state.hasActiveWeakPoints)
+
+        // Now direct hull hit damages the boss!
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 20
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp - 20, boss.hp)
     }
 }

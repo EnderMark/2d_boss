@@ -6,6 +6,7 @@ import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.BossLevel
+import com.endermark.bossbattle.model.BossWeakPoint
 import com.endermark.bossbattle.model.GameSoundEvent
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
@@ -171,6 +172,7 @@ class BossBattleEngine(
         state.platforms.clear()
         state.lasers.clear()
         state.minions.clear()
+        state.weakPoints.clear()
         state.joystickX = 0f
         state.joystickY = 0f
         state.phaseFlashTimer = 0f
@@ -185,6 +187,9 @@ class BossBattleEngine(
 
         if (level.enablePlatforms) {
             populateInitialPlatforms()
+        }
+        if (level.enableWeakPoints) {
+            populateWeakPoints()
         }
 
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
@@ -395,6 +400,15 @@ class BossBattleEngine(
         if (boss.hitFlashTimer > 0f) {
             boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
         }
+        for (wp in state.weakPoints) {
+            if (wp.hitFlashTimer > 0f) {
+                wp.hitFlashTimer = max(0f, wp.hitFlashTimer - dt)
+            }
+        }
+        if (boss.stunTimer > 0f) {
+            boss.stunTimer = max(0f, boss.stunTimer - dt)
+            return
+        }
 
         // Smooth orbital figure-8 flight across upper-central space
         val speedScale = if (boss.isEnraged) 1.35f else 1.0f
@@ -414,10 +428,12 @@ class BossBattleEngine(
             }
         }
 
-        minionSpawnTimer -= dt
-        if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
-            spawnMinionShip()
-            minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+        if (level.enableMinions) {
+            minionSpawnTimer -= dt
+            if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
+                spawnMinionShip()
+                minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+            }
         }
     }
 
@@ -1055,15 +1071,48 @@ class BossBattleEngine(
                 }
                 if (hitMinion) continue
 
+                // Check destructible weak points (Level 22 Aegis Dreadnought)
+                var hitWeakPoint = false
+                for (wp in state.weakPoints) {
+                    if (wp.isDestroyed) continue
+                    val wpX = boss.x + wp.offsetX
+                    val wpY = boss.y + wp.offsetY
+                    if (circlesCollide(projectile.x, projectile.y, projectile.radius, wpX, wpY, wp.radius)) {
+                        hitWeakPoint = true
+                        iterator.remove()
+                        wp.hp = max(0, wp.hp - projectile.damage)
+                        wp.hitFlashTimer = 0.09f
+                        if (wp.isDestroyed) {
+                            emitSound(GameSoundEvent.ARMOR_BREAK)
+                            spawnHitParticles(wpX, wpY, COLOR_VICTORY_SPARK, 18)
+                            if (!state.hasActiveWeakPoints) {
+                                state.phaseFlashTimer = 0.50f
+                                boss.stunTimer = 1.4f
+                                spawnHitParticles(boss.x, boss.y, COLOR_SHIELD_BLOCK_SPARK, 24)
+                            }
+                        } else {
+                            emitSound(GameSoundEvent.BOSS_HIT)
+                            spawnHitParticles(projectile.x, projectile.y, COLOR_BOSS_HIT_SPARK, 8)
+                        }
+                        break
+                    }
+                }
+                if (hitWeakPoint) continue
+
                 if (!boss.isVanished && circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         boss.x, boss.y, boss.radius
                     )
                 ) {
                     iterator.remove()
-                    applyDamageToBoss(projectile.damage, projectile.x, projectile.y)
-                    if (state.status != GameStatus.PLAYING) {
-                        return
+                    if (state.hasActiveWeakPoints) {
+                        emitSound(GameSoundEvent.SHIELD_BLOCK)
+                        spawnHitParticles(projectile.x, projectile.y, COLOR_ARMOR_SPARK, 8)
+                    } else {
+                        applyDamageToBoss(projectile.damage, projectile.x, projectile.y)
+                        if (state.status != GameStatus.PLAYING) {
+                            return
+                        }
                     }
                 }
             } else {
@@ -1740,6 +1789,33 @@ class BossBattleEngine(
         }
     }
 
+    private fun populateWeakPoints() {
+        val r = state.boss.radius
+        state.weakPoints.clear()
+        // 1 weak point behind (rear reactor) + 2 weak points on the sides
+        state.weakPoints.add(
+            BossWeakPoint(
+                id = "REAR",
+                offsetX = 0f,
+                offsetY = -r * 0.92f
+            )
+        )
+        state.weakPoints.add(
+            BossWeakPoint(
+                id = "LEFT",
+                offsetX = -r * 1.08f,
+                offsetY = 10f
+            )
+        )
+        state.weakPoints.add(
+            BossWeakPoint(
+                id = "RIGHT",
+                offsetX = r * 1.08f,
+                offsetY = 10f
+            )
+        )
+    }
+
     private fun populateInitialPlatforms() {
         state.platforms.clear()
         state.platforms.add(
@@ -2006,13 +2082,13 @@ class BossBattleEngine(
         private const val FREE_FLIGHT_PLAYER_SPEED = 520f
         private const val FREE_FLIGHT_BOLT_SPEED = 1050f
         private const val FREE_FLIGHT_FIRE_INTERVAL = 0.20f
-        private const val MAX_ACTIVE_MINIONS = 4
-        private const val MINION_FIRST_SPAWN_DELAY = 2.6f
-        private const val MINION_SPAWN_INTERVAL = 4.2f
-        private const val MINION_ENRAGED_SPAWN_INTERVAL = 2.9f
-        private const val MINION_SPEED = 220f
-        private const val MINION_BOLT_SPEED = 420f
-        private const val MINION_FIRE_INTERVAL = 1.85f
+        private const val MAX_ACTIVE_MINIONS = 3
+        private const val MINION_FIRST_SPAWN_DELAY = 5.2f
+        private const val MINION_SPAWN_INTERVAL = 8.4f
+        private const val MINION_ENRAGED_SPAWN_INTERVAL = 5.8f
+        private const val MINION_SPEED = 205f
+        private const val MINION_BOLT_SPEED = 400f
+        private const val MINION_FIRE_INTERVAL = 1.95f
 
         private const val PLATFORMER_MOVE_SPEED = 460f
         private const val SHIELD_MOVE_MULTIPLIER = 0.55f

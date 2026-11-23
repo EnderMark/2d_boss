@@ -113,6 +113,26 @@ data class MinionShip(
     }
 }
 
+data class BossWeakPoint(
+    val id: String,
+    val offsetX: Float,
+    val offsetY: Float,
+    val radius: Float = 28f,
+    var hp: Int = MAX_HP,
+    val maxHp: Int = MAX_HP,
+    var hitFlashTimer: Float = 0f
+) {
+    val isDestroyed: Boolean
+        get() = hp <= 0
+
+    val hpRatio: Float
+        get() = (hp.toFloat() / maxHp.toFloat()).coerceIn(0f, 1f)
+
+    companion object {
+        const val MAX_HP = 40
+    }
+}
+
 data class Player(
     var x: Float,
     var y: Float,
@@ -240,10 +260,14 @@ data class GameState(
     val platforms: MutableList<MovingPlatform> = mutableListOf(),
     val lasers: MutableList<LaserBeam> = mutableListOf(),
     val minions: MutableList<MinionShip> = mutableListOf(),
+    val weakPoints: MutableList<BossWeakPoint> = mutableListOf(),
     var joystickX: Float = 0f,
     var joystickY: Float = 0f,
     var elapsedTime: Float = 0f,
     var endStateCooldown: Float = 0f,
     var phaseFlashTimer: Float = 0f,
     val groundY: Float = 1260f
-)
+) {
+    val hasActiveWeakPoints: Boolean
+        get() = weakPoints.any { !it.isDestroyed }
+}

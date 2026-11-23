@@ -531,7 +531,12 @@ class GameRenderer {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
-                ArenaTheme.DEEP_SPACE -> drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.DEEP_SPACE -> {
+                    drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime, state.hasActiveWeakPoints)
+                    if (state.weakPoints.isNotEmpty()) {
+                        drawWeakPoints(canvas, state)
+                    }
+                }
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH_TAX -> drawAlessioTaxBoss(canvas, state.boss, state.elapsedTime)
@@ -2094,11 +2099,28 @@ class GameRenderer {
         particlePaint.alpha = 255
     }
 
-    private fun drawDreadnoughtBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+    private fun drawDreadnoughtBoss(
+        canvas: Canvas,
+        boss: Boss,
+        elapsedTime: Float,
+        isInvincible: Boolean = false
+    ) {
         val x = boss.x
         val y = boss.y
         val r = boss.radius
         val isHit = boss.hitFlashTimer > 0f
+
+        // Shimmering invincibility forcefield while weak points are active
+        if (isInvincible) {
+            val shieldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(170, 0, 229, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 10f
+            }
+            val pulseR = r * (1.26f + 0.04f * sin(elapsedTime * 8f))
+            canvas.drawCircle(x, y, pulseR, shieldPaint)
+            canvas.drawCircle(x, y, pulseR * 0.92f, shieldAuraPaint)
+        }
 
         // Twin rear engine thrusters
         val glow = 16f + sin(elapsedTime * 24f) * 5f
@@ -2132,11 +2154,51 @@ class GameRenderer {
         // Glowing central bridge / reactor core
         bossCorePaint.color = when {
             isHit -> Color.WHITE
+            isInvincible -> Color.parseColor("#00E5FF")
             boss.isEnraged -> Color.parseColor("#FFAB00")
             else -> Color.parseColor("#FF5252")
         }
         canvas.drawCircle(x, y + r * 0.08f, r * 0.30f, bossCorePaint)
         canvas.drawCircle(x, y + r * 0.08f, r * 0.14f, swissCrossWhitePaint)
+    }
+
+    private fun drawWeakPoints(canvas: Canvas, state: GameState) {
+        val boss = state.boss
+        var remaining = 0
+        for (wp in state.weakPoints) {
+            val wx = boss.x + wp.offsetX
+            val wy = boss.y + wp.offsetY
+            if (wp.isDestroyed) {
+                // Charred destroyed socket
+                canvas.drawCircle(wx, wy, wp.radius * 0.65f, chanHairPaint)
+                continue
+            }
+            remaining += 1
+            val pulse = 1f + 0.12f * sin(state.elapsedTime * 10f)
+            bossCorePaint.color = if (wp.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FF1744")
+            canvas.drawCircle(wx, wy, wp.radius * pulse, bossCorePaint)
+            canvas.drawCircle(wx, wy, wp.radius * 0.45f, hanoiLanternGoldPaint)
+            canvas.drawCircle(wx, wy, wp.radius * pulse, controlShieldBorderPaint)
+
+            // Mini HP bar above weak point
+            val barW = 54f
+            val barLeft = wx - barW / 2f
+            val barTop = wy - wp.radius - 16f
+            tempRect.set(barLeft, barTop, barLeft + barW, barTop + 8f)
+            canvas.drawRoundRect(tempRect, 4f, 4f, barBgPaint)
+            tempRect.set(barLeft, barTop, barLeft + barW * wp.hpRatio, barTop + 8f)
+            canvas.drawRoundRect(tempRect, 4f, 4f, hanoiLanternGoldPaint)
+        }
+
+        // Status banner right under boss HP bar
+        val statusText = if (remaining > 0) {
+            "INVINCIBILE • PUNTI DEBOLI: $remaining/${state.weakPoints.size}"
+        } else {
+            "VULNERABILE! COLPISCI LA CORAZZATA!"
+        }
+        phaseBadgePaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)
+        phaseBadgePaint.textAlign = Paint.Align.LEFT
     }
 
     private fun drawMinions(canvas: Canvas, state: GameState) {

@@ -36,6 +36,8 @@ data class BossLevel(
     val multiPhase: Boolean = false,
     val enablePlatforms: Boolean = false,
     val enableLasers: Boolean = false,
+    val enableMinions: Boolean = false,
+    val enableWeakPoints: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -405,11 +407,31 @@ object LevelCatalog {
         arenaTheme = ArenaTheme.DEEP_SPACE,
         hasShield = false,
         bossMaxHp = 280,
+        enableMinions = true,
         bossBaseSpeed = 160f,
+        bossAttackInterval = 1.35f,
+        bossEnragedAttackInterval = 0.95f,
+        bossProjectileSpeed = 460f,
+        bossEnragedProjectileSpeed = 560f,
+        isUnlocked = true
+    )
+
+    val LEVEL_22 = BossLevel(
+        id = 22,
+        title = "LIVELLO 22 • PUNTI DEBOLI",
+        bossName = "CORAZZATA AEGIS",
+        subtitle = "Pad 360° • Invincibile: distruggi i 3 punti deboli (dietro e ai lati)",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 240,
+        enableMinions = false,
+        enableWeakPoints = true,
+        bossBaseSpeed = 155f,
         bossAttackInterval = 1.25f,
-        bossEnragedAttackInterval = 0.85f,
+        bossEnragedAttackInterval = 0.88f,
         bossProjectileSpeed = 480f,
-        bossEnragedProjectileSpeed = 590f,
+        bossEnragedProjectileSpeed = 580f,
         isUnlocked = true
     )
 
@@ -434,7 +456,8 @@ object LevelCatalog {
         LEVEL_18,
         LEVEL_19,
         LEVEL_20,
-        LEVEL_21
+        LEVEL_21,
+        LEVEL_22
     )
 
     fun findById(id: Int): BossLevel {
