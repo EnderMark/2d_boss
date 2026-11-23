@@ -9,13 +9,15 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle.
   - Trascina il dito per spostarti orizzontalmente e schivare i colpi mentre spari automaticamente.
   - Sotto il 50% di HP entra in **Fase 2** con raffiche a 3 proiettili.
 - **Livello 2 — `COLOSSO DI FERRO` (Platformer in mischia)**:
-  - Controlli multi-touch dedicati: **◀ / ▶** per muoversi, **SALTA** (supporta **doppio salto**), **COLPO** per attaccare in mischia (nessun proiettile per il giocatore).
+  - Controlli multi-touch dedicati: **◀ / ▶**, **SALTA** (con **doppio salto**) e **COLPO** in mischia.
   - Il boss alterna **onde d'urto a terra** e **cariche pesanti**, accelerando in **Fase 2**.
 - **Livello 3 — `CHAN` (Hanoi • Spada e Scudo)**:
-  - Ambientato ad **Hanoi** al tramonto con la silhouette della **Torre della Tartaruga (Tháp Rùa)** sul lago Hoàn Kiếm e lanterne sospese.
-  - La boss **Chan** indossa un tradizionale **Áo dài** e **Nón lá**, alternando lanci di lanterne infuocate e scatti rapidi.
-  - Il giocatore impugna **spada e scudo**: tieni premuto **SCUDO** per parare le lanterne e fermare gli scatti di Chan senza subire danni, oppure usa salto/doppio salto e contrattacca con **COLPO**.
-- **Barra della vita del Boss**: sempre visibile in alto con nome, badge `FASE 2`, contatore HP e scia animata del danno.
+  - Ambientato ad **Hanoi** al tramonto con la **Torre della Tartaruga (Tháp Rùa)** e lanterne sospese.
+  - La boss **Chan** lancia lanterne luminose e scatta rapidamente; il giocatore usa **spada e scudo** (`SCUDO`) per parare.
+- **Livello 4 — `LOLLO ZURICH` (Zurigo • Attacchi verbali)**:
+  - Ambientato a **Zurigo** tra Alpi e Grossmünster. **Lollo Zurich** (pelato, in giacca e cravatta) lancia fumetti con **lamentele in italiano** (`"CHE FREDDO!"`, `"TROPPO CARO!"`, `"SEMPRE PIOGGIA!"`, ...). Il giocatore torna **senza scudo**.
+- **Livello 5 — `IVANONE` (Droni, Fotocamera e Sparizioni)**:
+  - **Ivanone** (fisico scolpito) attacca lanciando **droni** e **flash fotografici**, e **sparisce facilmente** in una nuvola di fumo dopo pochi colpi o dopo uno scatto fotografico per riapparire dall'altro lato dell'arena.
 
 ## Build e Test
 

@@ -11,6 +11,7 @@ import com.endermark.bossbattle.model.HitParticle
 import com.endermark.bossbattle.model.LevelCatalog
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
+import com.endermark.bossbattle.model.ProjectileKind
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -30,6 +31,7 @@ class BossBattleEngine(
     private var targetPlayerX: Float = worldWidth / 2f
     private var moveInput: Int = 0
     private var nextMeleeBossAttackIsCharge: Boolean = false
+    private var complaintIndex: Int = 0
 
     fun startGame() {
         resetBattle(GameStatus.PLAYING)
@@ -103,6 +105,7 @@ class BossBattleEngine(
         state.particles.clear()
         moveInput = 0
         nextMeleeBossAttackIsCharge = false
+        complaintIndex = 0
 
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
             state.player.apply {
@@ -133,6 +136,8 @@ class BossBattleEngine(
                 action = BossAction.PATROL
                 actionTimer = 0f
                 facingDir = -1
+                vanishTimer = 0f
+                hitsSinceVanish = 0
             }
         } else {
             state.player.apply {
@@ -163,6 +168,8 @@ class BossBattleEngine(
                 action = BossAction.PATROL
                 actionTimer = 0f
                 facingDir = 1
+                vanishTimer = 0f
+                hitsSinceVanish = 0
             }
         }
         targetPlayerX = state.player.x
@@ -296,6 +303,23 @@ class BossBattleEngine(
         val maxX = state.worldWidth - boss.radius - ARENA_PADDING
         boss.y = state.groundY - boss.radius
 
+        // Ivanone vanish / reappear handling
+        if (boss.vanishTimer > 0f) {
+            boss.vanishTimer = max(0f, boss.vanishTimer - dt)
+            if (boss.vanishTimer <= 0f) {
+                boss.x = if (player.x < state.worldWidth / 2f) {
+                    (state.worldWidth * 0.80f).coerceIn(minX, maxX)
+                } else {
+                    (state.worldWidth * 0.20f).coerceIn(minX, maxX)
+                }
+                boss.facingDir = if (player.x >= boss.x) 1 else -1
+                boss.action = BossAction.PATROL
+                boss.attackCooldown = if (boss.isEnraged) 0.55f else 0.75f
+                spawnHitParticles(boss.x, boss.y, COLOR_VANISH_SMOKE, 12)
+            }
+            return
+        }
+
         when (boss.action) {
             BossAction.PATROL -> {
                 val dx = player.x - boss.x
@@ -312,10 +336,10 @@ class BossBattleEngine(
                 if (boss.attackCooldown <= 0f) {
                     if (nextMeleeBossAttackIsCharge) {
                         boss.action = BossAction.TELEGRAPH_CHARGE
-                        boss.actionTimer = if (boss.isEnraged) 0.38f else 0.5f
+                        boss.actionTimer = if (boss.isEnraged) 0.36f else 0.48f
                     } else {
                         boss.action = BossAction.TELEGRAPH_SHOCKWAVE
-                        boss.actionTimer = if (boss.isEnraged) 0.35f else 0.45f
+                        boss.actionTimer = if (boss.isEnraged) 0.34f else 0.44f
                     }
                     nextMeleeBossAttackIsCharge = !nextMeleeBossAttackIsCharge
                 }
@@ -324,10 +348,11 @@ class BossBattleEngine(
             BossAction.TELEGRAPH_SHOCKWAVE -> {
                 boss.actionTimer -= dt
                 if (boss.actionTimer <= 0f) {
-                    if (level.arenaTheme == ArenaTheme.HANOI) {
-                        spawnChanLanternAttack()
-                    } else {
-                        spawnGroundShockwaves()
+                    when (level.arenaTheme) {
+                        ArenaTheme.HANOI -> spawnChanLanternAttack()
+                        ArenaTheme.ZURICH -> spawnLolloComplaintAttack()
+                        ArenaTheme.STUDIO -> spawnIvanoneDroneAttack()
+                        else -> spawnGroundShockwaves()
                     }
                     boss.action = BossAction.PATROL
                     boss.attackCooldown = if (boss.isEnraged) {
@@ -342,8 +367,13 @@ class BossBattleEngine(
                 boss.facingDir = if (player.x >= boss.x) 1 else -1
                 boss.actionTimer -= dt
                 if (boss.actionTimer <= 0f) {
-                    boss.action = BossAction.CHARGING
-                    boss.actionTimer = 0.65f
+                    if (level.arenaTheme == ArenaTheme.STUDIO) {
+                        spawnIvanoneCameraAttack()
+                        triggerBossVanish()
+                    } else {
+                        boss.action = BossAction.CHARGING
+                        boss.actionTimer = 0.65f
+                    }
                 }
             }
 
@@ -378,6 +408,14 @@ class BossBattleEngine(
         }
     }
 
+    private fun triggerBossVanish() {
+        val boss = state.boss
+        boss.vanishTimer = if (boss.isEnraged) IVANONE_ENRAGED_VANISH_DURATION else IVANONE_VANISH_DURATION
+        boss.action = BossAction.PATROL
+        boss.hitsSinceVanish = 0
+        spawnHitParticles(boss.x, boss.y, COLOR_VANISH_SMOKE, 14)
+    }
+
     private fun updateProjectiles(dt: Float) {
         val iterator = state.projectiles.iterator()
         while (iterator.hasNext()) {
@@ -385,10 +423,10 @@ class BossBattleEngine(
             projectile.x += projectile.vx * dt
             projectile.y += projectile.vy * dt
 
-            val outOfBounds = projectile.x < -projectile.radius * 2f ||
-                projectile.x > state.worldWidth + projectile.radius * 2f ||
-                projectile.y < -projectile.radius * 2f ||
-                projectile.y > state.worldHeight + projectile.radius * 2f
+            val outOfBounds = projectile.x < -projectile.radius * 3f ||
+                projectile.x > state.worldWidth + projectile.radius * 3f ||
+                projectile.y < -projectile.radius * 3f ||
+                projectile.y > state.worldHeight + projectile.radius * 3f
             if (outOfBounds) {
                 iterator.remove()
             }
@@ -399,7 +437,7 @@ class BossBattleEngine(
         val boss = state.boss
         val player = state.player
 
-        if (level.mode == BattleMode.MELEE_PLATFORMER) {
+        if (level.mode == BattleMode.MELEE_PLATFORMER && !boss.isVanished) {
             // Player melee swing vs Boss
             if (player.isAttacking && !player.meleeHitApplied) {
                 val strikeX = player.x + player.facingDir * MELEE_REACH_OFFSET
@@ -414,7 +452,7 @@ class BossBattleEngine(
             }
 
             // Boss body contact vs Player
-            if (!player.isInvulnerable && circlesCollide(
+            if (!boss.isVanished && !player.isInvulnerable && circlesCollide(
                     player.x, player.y, player.radius * 0.9f,
                     boss.x, boss.y, boss.radius * 0.85f
                 )
@@ -452,7 +490,7 @@ class BossBattleEngine(
         while (iterator.hasNext()) {
             val projectile = iterator.next()
             if (projectile.fromPlayer) {
-                if (circlesCollide(
+                if (!boss.isVanished && circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         boss.x, boss.y, boss.radius
                     )
@@ -501,6 +539,15 @@ class BossBattleEngine(
             state.endStateCooldown = END_STATE_COOLDOWN
             state.projectiles.clear()
             spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 24)
+            return
+        }
+
+        // Ivanone vanishes easily after taking 2 hits!
+        if (level.arenaTheme == ArenaTheme.STUDIO) {
+            boss.hitsSinceVanish += 1
+            if (boss.hitsSinceVanish >= IVANONE_HITS_BEFORE_VANISH) {
+                triggerBossVanish()
+            }
         }
     }
 
@@ -527,7 +574,8 @@ class BossBattleEngine(
                 vy = -PLAYER_PROJECTILE_SPEED,
                 radius = 12f,
                 fromPlayer = true,
-                damage = PLAYER_SHOT_DAMAGE
+                damage = PLAYER_SHOT_DAMAGE,
+                kind = ProjectileKind.PLAYER_BOLT
             )
         )
     }
@@ -557,7 +605,8 @@ class BossBattleEngine(
                     vy = (sin(angle) * speed).toFloat(),
                     radius = 18f,
                     fromPlayer = false,
-                    damage = 1
+                    damage = 1,
+                    kind = ProjectileKind.BOSS_ORB
                 )
             )
         }
@@ -589,7 +638,103 @@ class BossBattleEngine(
                     radius = 20f,
                     fromPlayer = false,
                     damage = 1,
-                    isShockwave = false
+                    kind = ProjectileKind.LANTERN
+                )
+            )
+        }
+    }
+
+    private fun spawnLolloComplaintAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed
+        } else {
+            level.bossProjectileSpeed
+        }
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.20, baseAngle, baseAngle + 0.16)
+        } else {
+            listOf(baseAngle, baseAngle - 0.14)
+        }
+
+        spawnHitParticles(boss.x, boss.y - 30f, COLOR_VICTORY_SPARK, 8)
+        for (angle in angles) {
+            val text = LOLLO_COMPLAINTS[complaintIndex % LOLLO_COMPLAINTS.size]
+            complaintIndex += 1
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.45f),
+                    y = boss.y - 24f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.COMPLAINT,
+                    label = text
+                )
+            )
+        }
+    }
+
+    private fun spawnIvanoneDroneAttack() {
+        val boss = state.boss
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed
+        } else {
+            level.bossProjectileSpeed
+        }
+        val dir = boss.facingDir.toFloat()
+        val heights = if (boss.isEnraged) {
+            listOf(state.groundY - 56f, state.groundY - 190f)
+        } else {
+            listOf(state.groundY - 90f)
+        }
+        spawnHitParticles(boss.x, boss.y - 30f, COLOR_PLAYER_HIT_SPARK, 8)
+        for (yPos in heights) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + dir * (boss.radius * 0.5f),
+                    y = yPos,
+                    vx = dir * speed,
+                    vy = 0f,
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.DRONE
+                )
+            )
+        }
+    }
+
+    private fun spawnIvanoneCameraAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed * 1.15f
+        } else {
+            level.bossProjectileSpeed * 1.15f
+        }
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.16, baseAngle, baseAngle + 0.16)
+        } else {
+            listOf(baseAngle)
+        }
+        spawnHitParticles(boss.x + boss.facingDir * 30f, boss.y - 16f, COLOR_SHIELD_BLOCK_SPARK, 12)
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.55f),
+                    y = boss.y - 12f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.CAMERA_FLASH
                 )
             )
         }
@@ -614,7 +759,7 @@ class BossBattleEngine(
                     radius = 24f,
                     fromPlayer = false,
                     damage = 1,
-                    isShockwave = true
+                    kind = ProjectileKind.SHOCKWAVE
                 )
             )
         }
@@ -679,10 +824,12 @@ class BossBattleEngine(
     ): GameState {
         val isMelee = level.mode == BattleMode.MELEE_PLATFORMER
         val playerRadius = 36f
-        val bossRadius = when {
-            level.arenaTheme == ArenaTheme.HANOI -> 64f
-            isMelee -> 84f
-            else -> 88f
+        val bossRadius = when (level.arenaTheme) {
+            ArenaTheme.HANOI -> 64f
+            ArenaTheme.ZURICH -> 66f
+            ArenaTheme.STUDIO -> 74f
+            ArenaTheme.IRON_ARENA -> 84f
+            ArenaTheme.SPACE -> 88f
         }
         return GameState(
             level = level,
@@ -745,7 +892,22 @@ class BossBattleEngine(
         private const val BOSS_HP_TRAIL_SPEED = 32f
         private const val SPREAD_ANGLE_RAD = 0.28
 
+        private const val IVANONE_HITS_BEFORE_VANISH = 2
+        private const val IVANONE_VANISH_DURATION = 0.72f
+        private const val IVANONE_ENRAGED_VANISH_DURATION = 0.55f
+
         private const val END_STATE_COOLDOWN = 0.4f
+
+        val LOLLO_COMPLAINTS = listOf(
+            "CHE FREDDO!",
+            "TROPPO CARO!",
+            "SEMPRE PIOGGIA!",
+            "ZERO SOLE!",
+            "CAFFÈ PESSIMO!",
+            "TUTTO CHIUSO!",
+            "CHE ANSIA!",
+            "QUANTO COSTA?!"
+        )
 
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()
         const val COLOR_VICTORY_SPARK = 0xFFFF7043.toInt()
@@ -753,5 +915,6 @@ class BossBattleEngine(
         const val COLOR_JUMP_DUST = 0xFFB0BEC5.toInt()
         const val COLOR_DOUBLE_JUMP_SPARK = 0xFF80DEEA.toInt()
         const val COLOR_SHIELD_BLOCK_SPARK = 0xFFFFE082.toInt()
+        const val COLOR_VANISH_SMOKE = 0xFFCFD8DC.toInt()
     }
 }

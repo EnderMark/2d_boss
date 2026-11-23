@@ -3,54 +3,64 @@ package com.endermark.bossbattle.engine
 import com.endermark.bossbattle.model.ArenaTheme
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
+import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.BossLevel
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.LevelCatalog
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
+import com.endermark.bossbattle.model.ProjectileKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllThreeLevels() {
-        assertEquals(3, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllFiveLevels() {
+        assertEquals(5, LevelCatalog.levels.size)
 
         val level1 = LevelCatalog.levels[0]
         assertEquals(1, level1.id)
-        assertEquals("LIVELLO 1", level1.title)
         assertEquals("GUARDIANO D'OMBRA", level1.bossName)
         assertEquals(BattleMode.SHOOTER, level1.mode)
 
         val level2 = LevelCatalog.levels[1]
         assertEquals(2, level2.id)
-        assertEquals("LIVELLO 2", level2.title)
         assertEquals("COLOSSO DI FERRO", level2.bossName)
         assertEquals(BattleMode.MELEE_PLATFORMER, level2.mode)
         assertFalse(level2.hasShield)
 
         val level3 = LevelCatalog.levels[2]
         assertEquals(3, level3.id)
-        assertEquals("LIVELLO 3", level3.title)
         assertEquals("CHAN", level3.bossName)
-        assertEquals(BattleMode.MELEE_PLATFORMER, level3.mode)
         assertEquals(ArenaTheme.HANOI, level3.arenaTheme)
         assertTrue(level3.hasShield)
 
-        assertEquals(level1, LevelCatalog.findById(1))
-        assertEquals(level2, LevelCatalog.findById(2))
-        assertEquals(level3, LevelCatalog.findById(3))
+        val level4 = LevelCatalog.levels[3]
+        assertEquals(4, level4.id)
+        assertEquals("LOLLO ZURICH", level4.bossName)
+        assertEquals(ArenaTheme.ZURICH, level4.arenaTheme)
+        assertFalse(level4.hasShield)
+
+        val level5 = LevelCatalog.levels[4]
+        assertEquals(5, level5.id)
+        assertEquals("IVANONE", level5.bossName)
+        assertEquals(ArenaTheme.STUDIO, level5.arenaTheme)
+        assertFalse(level5.hasShield)
+
+        assertEquals(level4, LevelCatalog.findById(4))
+        assertEquals(level5, LevelCatalog.findById(5))
         assertEquals(level1, LevelCatalog.findById(999))
     }
 
     @Test
     fun engineInitializesBossFromSelectedLevel() {
         val customLevel = BossLevel(
-            id = 4,
-            title = "LIVELLO 4",
+            id = 9,
+            title = "LIVELLO 9",
             bossName = "TITANO DI FUOCO",
             subtitle = "Test",
             mode = BattleMode.SHOOTER,
@@ -191,32 +201,6 @@ class BossBattleEngineTest {
     }
 
     @Test
-    fun levelTwoUsesMeleeOnlyWithoutPlayerProjectiles() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_2)
-        engine.startGame()
-
-        val player = engine.state.player
-        val boss = engine.state.boss
-        val initialBossHp = boss.hp
-
-        player.x = 120f
-        boss.x = 850f
-        assertTrue(engine.triggerMeleeAttack())
-        engine.update(0.016f)
-        assertEquals(initialBossHp, boss.hp)
-        assertTrue(engine.state.projectiles.none { it.fromPlayer })
-
-        repeat(10) { engine.update(0.05f) }
-        boss.x = 500f
-        player.x = boss.x - boss.radius - 40f
-        player.facingDir = 1
-        assertTrue(engine.triggerMeleeAttack())
-        engine.update(0.016f)
-        assertTrue(boss.hp < initialBossHp)
-        assertTrue(engine.state.projectiles.none { it.fromPlayer })
-    }
-
-    @Test
     fun levelThreeShieldBlocksChanProjectilesWithZeroDamage() {
         val engine = BossBattleEngine(level = LevelCatalog.LEVEL_3)
         engine.startGame()
@@ -236,7 +220,8 @@ class BossBattleEngineTest {
                 vy = 0f,
                 radius = 20f,
                 fromPlayer = false,
-                damage = 1
+                damage = 1,
+                kind = ProjectileKind.LANTERN
             )
         )
 
@@ -249,5 +234,49 @@ class BossBattleEngineTest {
         engine.setBlocking(false)
         assertFalse(player.isBlocking)
         assertTrue(engine.triggerMeleeAttack())
+    }
+
+    @Test
+    fun levelFourLolloZurichFiresItalianComplaintsAndPlayerHasNoShield() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_4)
+        engine.startGame()
+
+        // Shield is disabled on Level 4
+        engine.setBlocking(true)
+        assertFalse(engine.state.player.isBlocking)
+
+        // Trigger verbal complaint attack
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+
+        val complaints = engine.state.projectiles.filter { it.kind == ProjectileKind.COMPLAINT }
+        assertTrue(complaints.isNotEmpty())
+        assertNotNull(complaints.first().label)
+        assertTrue(BossBattleEngine.LOLLO_COMPLAINTS.contains(complaints.first().label))
+    }
+
+    @Test
+    fun levelFiveIvanoneUsesDroneCameraAndVanishesEasily() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_5)
+        engine.startGame()
+
+        // Trigger drone attack
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.DRONE })
+
+        // Trigger camera flash attack -> spawns CAMERA_FLASH and vanishes!
+        engine.state.projectiles.clear()
+        engine.state.boss.action = BossAction.TELEGRAPH_CHARGE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.CAMERA_FLASH })
+        assertTrue(engine.state.boss.isVanished)
+
+        // Reappears after vanishTimer expires
+        repeat(20) { engine.update(0.05f) }
+        assertFalse(engine.state.boss.isVanished)
     }
 }

@@ -14,6 +14,7 @@ import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.Player
+import com.endermark.bossbattle.model.ProjectileKind
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
@@ -25,7 +26,7 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
-    private val hanoiSkyPaint = Paint().apply {
+    private val skyGradientPaint = Paint().apply {
         style = Paint.Style.FILL
     }
 
@@ -54,6 +55,36 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
+    private val zurichMountainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1C2C42")
+        style = Paint.Style.FILL
+    }
+
+    private val zurichSnowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#CFD8DC")
+        style = Paint.Style.FILL
+    }
+
+    private val zurichCityPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#121D2E")
+        style = Paint.Style.FILL
+    }
+
+    private val swissCrossWhitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    private val studioBuildingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1B1726")
+        style = Paint.Style.FILL
+    }
+
+    private val studioBeamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(32, 255, 224, 130)
+        style = Paint.Style.FILL
+    }
+
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#181D33")
         strokeWidth = 2f
@@ -69,6 +100,16 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
+    private val zurichGroundFillPaint = Paint().apply {
+        color = Color.parseColor("#1A2433")
+        style = Paint.Style.FILL
+    }
+
+    private val studioGroundFillPaint = Paint().apply {
+        color = Color.parseColor("#26202C")
+        style = Paint.Style.FILL
+    }
+
     private val groundLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#4A5378")
         strokeWidth = 6f
@@ -76,6 +117,16 @@ class GameRenderer {
 
     private val hanoiGroundLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#D4A373")
+        strokeWidth = 6f
+    }
+
+    private val zurichGroundLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#90CAF9")
+        strokeWidth = 6f
+    }
+
+    private val studioGroundLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FFAB91")
         strokeWidth = 6f
     }
 
@@ -104,8 +155,25 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
-    private val chanSkinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val skinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#F5CBA7")
+        style = Paint.Style.FILL
+    }
+
+    private val baldShinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(210, 255, 255, 255)
+        style = Paint.Style.FILL
+    }
+
+    private val darkDetailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1E1E24")
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val mouthPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#B71C1C")
         style = Paint.Style.FILL
     }
 
@@ -124,6 +192,51 @@ class GameRenderer {
         color = Color.parseColor("#FFD54F")
         style = Paint.Style.STROKE
         strokeWidth = 5f
+    }
+
+    private val speechBubbleBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    private val speechBubbleBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#E53935")
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+    }
+
+    private val speechBubbleTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1A1A22")
+        textSize = 24f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
+    private val droneBodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#263238")
+        style = Paint.Style.FILL
+    }
+
+    private val droneRotorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#80DEEA")
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val droneLedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FF1744")
+        style = Paint.Style.FILL
+    }
+
+    private val cameraFlashOuterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(210, 255, 245, 157)
+        style = Paint.Style.FILL
+    }
+
+    private val cameraFlashInnerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
     }
 
     private val playerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -379,26 +492,27 @@ class GameRenderer {
         canvas.scale(scale, scale)
 
         val isMelee = state.level.mode == BattleMode.MELEE_PLATFORMER
-        val isHanoi = state.level.arenaTheme == ArenaTheme.HANOI
-
-        if (isHanoi) {
-            drawHanoiBackground(canvas, state)
-        } else {
-            drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
+        when (state.level.arenaTheme) {
+            ArenaTheme.HANOI -> drawHanoiBackground(canvas, state)
+            ArenaTheme.ZURICH -> drawZurichBackground(canvas, state)
+            ArenaTheme.STUDIO -> drawStudioBackground(canvas, state)
+            else -> drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
         }
         if (isMelee) {
-            drawGroundArena(canvas, state, isHanoi)
+            drawGroundArena(canvas, state)
         }
 
         drawBossHealthBar(canvas, state.boss, state.worldWidth)
         drawProjectiles(canvas, state)
         drawParticles(canvas, state)
 
-        if (state.boss.hp > 0) {
-            when {
-                isHanoi -> drawChanBoss(canvas, state.boss, state.elapsedTime)
-                isMelee -> drawMeleeBoss(canvas, state.boss, state.elapsedTime)
-                else -> drawShooterBoss(canvas, state.boss, state.elapsedTime)
+        if (state.boss.hp > 0 && !state.boss.isVanished) {
+            when (state.level.arenaTheme) {
+                ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.IRON_ARENA -> drawMeleeBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.SPACE -> drawShooterBoss(canvas, state.boss, state.elapsedTime)
             }
         }
 
@@ -419,7 +533,7 @@ class GameRenderer {
     }
 
     private fun drawHanoiBackground(canvas: Canvas, state: GameState) {
-        hanoiSkyPaint.shader = LinearGradient(
+        skyGradientPaint.shader = LinearGradient(
             0f,
             0f,
             0f,
@@ -432,20 +546,17 @@ class GameRenderer {
             null,
             Shader.TileMode.CLAMP
         )
-        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, hanoiSkyPaint)
-        hanoiSkyPaint.shader = null
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
 
-        // Hoan Kiem Lake band near horizon
         val lakeTop = state.groundY - 170f
         canvas.drawRect(0f, lakeTop, state.worldWidth, state.groundY, hanoiLakePaint)
 
-        // Turtle Tower (Thap Rua) silhouette on the lake
         val cx = state.worldWidth * 0.5f
         val baseY = lakeTop + 28f
         canvas.drawRect(cx - 125f, baseY - 20f, cx + 125f, baseY + 18f, hanoiSilhouettePaint)
         canvas.drawRect(cx - 76f, baseY - 110f, cx + 76f, baseY - 20f, hanoiSilhouettePaint)
         canvas.drawRect(cx - 56f, baseY - 178f, cx + 56f, baseY - 110f, hanoiSilhouettePaint)
-        // Curved pagoda roof
         tempPath.reset()
         tempPath.moveTo(cx - 88f, baseY - 178f)
         tempPath.lineTo(cx, baseY - 235f)
@@ -453,7 +564,6 @@ class GameRenderer {
         tempPath.close()
         canvas.drawPath(tempPath, hanoiSilhouettePaint)
 
-        // Hanging Hanoi lanterns swaying gently across the upper street
         val cordY = 235f
         canvas.drawLine(0f, cordY, state.worldWidth, cordY, hanoiLanternCordPaint)
         val lanternXs = listOf(120f, 290f, 500f, 710f, 880f)
@@ -466,6 +576,106 @@ class GameRenderer {
             canvas.drawOval(tempRect, lanternPaint)
             canvas.drawCircle(lx + sway, ly, 8f, hanoiLanternGoldPaint)
         }
+    }
+
+    private fun drawZurichBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#0E1726"),
+                Color.parseColor("#1B2D45"),
+                Color.parseColor("#2A4463")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Swiss Alps silhouette
+        tempPath.reset()
+        tempPath.moveTo(0f, state.groundY)
+        tempPath.lineTo(0f, state.groundY - 260f)
+        tempPath.lineTo(220f, state.groundY - 480f)
+        tempPath.lineTo(440f, state.groundY - 300f)
+        tempPath.lineTo(680f, state.groundY - 520f)
+        tempPath.lineTo(890f, state.groundY - 340f)
+        tempPath.lineTo(state.worldWidth, state.groundY - 410f)
+        tempPath.lineTo(state.worldWidth, state.groundY)
+        tempPath.close()
+        canvas.drawPath(tempPath, zurichMountainPaint)
+
+        // Snow caps
+        tempPath.reset()
+        tempPath.moveTo(220f, state.groundY - 480f)
+        tempPath.lineTo(175f, state.groundY - 425f)
+        tempPath.lineTo(265f, state.groundY - 425f)
+        tempPath.close()
+        canvas.drawPath(tempPath, zurichSnowPaint)
+
+        tempPath.reset()
+        tempPath.moveTo(680f, state.groundY - 520f)
+        tempPath.lineTo(632f, state.groundY - 462f)
+        tempPath.lineTo(728f, state.groundY - 462f)
+        tempPath.close()
+        canvas.drawPath(tempPath, zurichSnowPaint)
+
+        // Grossmunster twin towers silhouette
+        canvas.drawRect(380f, state.groundY - 280f, 450f, state.groundY, zurichCityPaint)
+        canvas.drawRect(500f, state.groundY - 280f, 570f, state.groundY, zurichCityPaint)
+        canvas.drawRect(450f, state.groundY - 190f, 500f, state.groundY, zurichCityPaint)
+        canvas.drawCircle(415f, state.groundY - 280f, 35f, zurichCityPaint)
+        canvas.drawCircle(535f, state.groundY - 280f, 35f, zurichCityPaint)
+
+        // Swiss flag badge in upper right
+        val flagX = 875f
+        val flagY = 230f
+        tempRect.set(flagX - 36f, flagY - 36f, flagX + 36f, flagY + 36f)
+        canvas.drawRoundRect(tempRect, 10f, 10f, hanoiLanternRedPaint)
+        canvas.drawRect(flagX - 20f, flagY - 7f, flagX + 20f, flagY + 7f, swissCrossWhitePaint)
+        canvas.drawRect(flagX - 7f, flagY - 20f, flagX + 7f, flagY + 20f, swissCrossWhitePaint)
+    }
+
+    private fun drawStudioBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#181326"),
+                Color.parseColor("#3B234A"),
+                Color.parseColor("#8A463B")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Subtle photography spotlight beams
+        tempPath.reset()
+        tempPath.moveTo(150f, 0f)
+        tempPath.lineTo(420f, state.groundY)
+        tempPath.lineTo(240f, state.groundY)
+        tempPath.close()
+        canvas.drawPath(tempPath, studioBeamPaint)
+
+        tempPath.reset()
+        tempPath.moveTo(850f, 0f)
+        tempPath.lineTo(760f, state.groundY)
+        tempPath.lineTo(580f, state.groundY)
+        tempPath.close()
+        canvas.drawPath(tempPath, studioBeamPaint)
+
+        // Rooftop skyline
+        canvas.drawRect(40f, state.groundY - 210f, 210f, state.groundY, studioBuildingPaint)
+        canvas.drawRect(250f, state.groundY - 310f, 430f, state.groundY, studioBuildingPaint)
+        canvas.drawRect(560f, state.groundY - 260f, 750f, state.groundY, studioBuildingPaint)
+        canvas.drawRect(790f, state.groundY - 340f, 960f, state.groundY, studioBuildingPaint)
     }
 
     private fun drawArenaGrid(canvas: Canvas, width: Float, height: Float) {
@@ -482,21 +692,21 @@ class GameRenderer {
         }
     }
 
-    private fun drawGroundArena(canvas: Canvas, state: GameState, isHanoi: Boolean) {
-        canvas.drawRect(
-            0f,
-            state.groundY,
-            state.worldWidth,
-            state.worldHeight,
-            if (isHanoi) hanoiGroundFillPaint else groundFillPaint
-        )
-        canvas.drawLine(
-            0f,
-            state.groundY,
-            state.worldWidth,
-            state.groundY,
-            if (isHanoi) hanoiGroundLinePaint else groundLinePaint
-        )
+    private fun drawGroundArena(canvas: Canvas, state: GameState) {
+        val fill = when (state.level.arenaTheme) {
+            ArenaTheme.HANOI -> hanoiGroundFillPaint
+            ArenaTheme.ZURICH -> zurichGroundFillPaint
+            ArenaTheme.STUDIO -> studioGroundFillPaint
+            else -> groundFillPaint
+        }
+        val line = when (state.level.arenaTheme) {
+            ArenaTheme.HANOI -> hanoiGroundLinePaint
+            ArenaTheme.ZURICH -> zurichGroundLinePaint
+            ArenaTheme.STUDIO -> studioGroundLinePaint
+            else -> groundLinePaint
+        }
+        canvas.drawRect(0f, state.groundY, state.worldWidth, state.worldHeight, fill)
+        canvas.drawLine(0f, state.groundY, state.worldWidth, state.groundY, line)
     }
 
     private fun drawBossHealthBar(canvas: Canvas, boss: Boss, worldWidth: Float) {
@@ -636,11 +846,9 @@ class GameRenderer {
             canvas.drawCircle(x, y, auraRadius, bossTelegraphPaint)
         }
 
-        // Flowing dark hair behind shoulders
         tempRect.set(x - r * 0.44f, y - r * 0.82f, x + r * 0.44f, y + r * 0.12f)
         canvas.drawRoundRect(tempRect, 20f, 20f, chanHairPaint)
 
-        // Traditional Ao Dai silhouette
         bossArmorPaint.color = when {
             isHit -> Color.WHITE
             boss.action == BossAction.CHARGING -> Color.parseColor("#FF7043")
@@ -656,10 +864,8 @@ class GameRenderer {
         canvas.drawPath(tempPath, bossArmorPaint)
         canvas.drawLine(x, y - r * 0.30f, x, y + r * 0.94f, chanGoldTrimPaint)
 
-        // Face
-        canvas.drawCircle(x, y - r * 0.58f, r * 0.30f, if (isHit) bossArmorPaint else chanSkinPaint)
+        canvas.drawCircle(x, y - r * 0.58f, r * 0.30f, if (isHit) bossArmorPaint else skinPaint)
 
-        // Traditional Vietnamese Non La conical hat
         tempPath.reset()
         tempPath.moveTo(x - r * 0.86f, y - r * 0.72f)
         tempPath.lineTo(x, y - r * 1.32f)
@@ -667,6 +873,116 @@ class GameRenderer {
         tempPath.close()
         canvas.drawPath(tempPath, if (isHit) bossArmorPaint else chanHatPaint)
         canvas.drawPath(tempPath, chanHatOutlinePaint)
+    }
+
+    private fun drawLolloZurichBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            val auraRadius = r * (1.18f + 0.12f * sin(elapsedTime * 20f))
+            canvas.drawCircle(x, y, auraRadius, bossTelegraphPaint)
+        }
+
+        // Smart Zurich blazer / jacket
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            boss.isEnraged -> Color.parseColor("#37474F")
+            else -> Color.parseColor("#263238")
+        }
+        tempRect.set(x - r * 0.55f, y - r * 0.28f, x + r * 0.55f, y + r * 0.96f)
+        canvas.drawRoundRect(tempRect, 20f, 20f, bossArmorPaint)
+
+        // Red Swiss tie
+        tempPath.reset()
+        tempPath.moveTo(x - 10f, y - r * 0.25f)
+        tempPath.lineTo(x + 10f, y - r * 0.25f)
+        tempPath.lineTo(x, y + r * 0.45f)
+        tempPath.close()
+        canvas.drawPath(tempPath, hanoiLanternRedPaint)
+
+        // Bald round head with shiny specular reflection!
+        val headY = y - r * 0.68f
+        val headR = r * 0.44f
+        canvas.drawCircle(x, headY, headR, if (isHit) bossArmorPaint else skinPaint)
+        if (!isHit) {
+            canvas.drawCircle(x - headR * 0.28f, headY - headR * 0.35f, headR * 0.22f, baldShinePaint)
+            // Angry eyebrows
+            val dir = boss.facingDir.toFloat()
+            canvas.drawLine(x - 16f, headY - 10f, x - 2f, headY - 2f, darkDetailPaint)
+            canvas.drawLine(x + 16f, headY - 10f, x + 2f, headY - 2f, darkDetailPaint)
+            // Shouting mouth when complaining/telegraphing
+            val mouthR = if (isTelegraphing || boss.action == BossAction.CHARGING) 11f else 6f
+            canvas.drawCircle(x + dir * 6f, headY + 14f, mouthR, mouthPaint)
+        }
+    }
+
+    private fun drawIvanoneBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            val auraRadius = r * (1.2f + 0.12f * sin(elapsedTime * 20f))
+            canvas.drawCircle(x, y, auraRadius, bossTelegraphPaint)
+        }
+
+        // Legs (athletic stance)
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#212121")
+        canvas.drawRoundRect(
+            RectF(x - r * 0.38f, y + r * 0.35f, x - r * 0.08f, y + r * 0.98f),
+            12f,
+            12f,
+            bossArmorPaint
+        )
+        canvas.drawRoundRect(
+            RectF(x + r * 0.08f, y + r * 0.35f, x + r * 0.38f, y + r * 0.98f),
+            12f,
+            12f,
+            bossArmorPaint
+        )
+
+        // Heroic V-taper muscular torso
+        val torsoPaint = if (isHit) bossArmorPaint else skinPaint
+        tempPath.reset()
+        tempPath.moveTo(x - r * 0.72f, y - r * 0.42f)
+        tempPath.lineTo(x + r * 0.72f, y - r * 0.42f)
+        tempPath.lineTo(x + r * 0.38f, y + r * 0.40f)
+        tempPath.lineTo(x - r * 0.38f, y + r * 0.40f)
+        tempPath.close()
+        canvas.drawPath(tempPath, torsoPaint)
+
+        // Big muscular shoulders / biceps
+        canvas.drawCircle(x - r * 0.68f, y - r * 0.28f, r * 0.26f, torsoPaint)
+        canvas.drawCircle(x + r * 0.68f, y - r * 0.28f, r * 0.26f, torsoPaint)
+
+        // Defined chest/abs lines
+        if (!isHit) {
+            canvas.drawLine(x - 22f, y - r * 0.12f, x + 22f, y - r * 0.12f, darkDetailPaint)
+            canvas.drawLine(x, y - r * 0.12f, x, y + r * 0.26f, darkDetailPaint)
+        }
+
+        // Head + stylish hair
+        val headY = y - r * 0.76f
+        canvas.drawCircle(x, headY, r * 0.30f, torsoPaint)
+        tempRect.set(x - r * 0.32f, headY - r * 0.36f, x + r * 0.32f, headY - r * 0.06f)
+        canvas.drawRoundRect(tempRect, 14f, 14f, chanHairPaint)
+
+        // DSLR Camera held in front when telegraphing camera flash
+        if (boss.action == BossAction.TELEGRAPH_CHARGE) {
+            val camX = x + boss.facingDir * r * 0.58f
+            val camY = y - r * 0.28f
+            tempRect.set(camX - 24f, camY - 16f, camX + 24f, camY + 16f)
+            canvas.drawRoundRect(tempRect, 8f, 8f, droneBodyPaint)
+            canvas.drawCircle(camX + boss.facingDir * 8f, camY, 10f, cameraFlashOuterPaint)
+        }
     }
 
     private fun drawPlayerShip(canvas: Canvas, player: Player, elapsedTime: Float) {
@@ -706,25 +1022,20 @@ class GameRenderer {
             0f
         }
 
-        // Legs
         canvas.drawLine(x - 6f, y + r * 0.3f, x - 12f - walkSwing, y + r, playerLimbPaint)
         canvas.drawLine(x + 6f, y + r * 0.3f, x + 12f + walkSwing, y + r, playerLimbPaint)
 
-        // Torso
         tempRect.set(x - 16f, y - r * 0.32f, x + 16f, y + r * 0.38f)
         canvas.drawRoundRect(tempRect, 10f, 10f, playerPaint)
 
-        // Head
         canvas.drawCircle(x, y - r * 0.68f, 17f, playerAccentPaint)
 
-        // Sword arm
         val armStartX = x + dir * 12f
         val armStartY = y - r * 0.1f
         val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
         val swordTipY = if (player.isAttacking) y - 6f else y - 24f
         canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
 
-        // Shield (Level 3)
         if (hasShield) {
             val shieldX = if (player.isBlocking) x + dir * 34f else x - dir * 20f
             val shieldHalfW = if (player.isBlocking) 14f else 10f
@@ -748,7 +1059,6 @@ class GameRenderer {
             }
         }
 
-        // Glowing melee slash arc
         if (player.isAttacking) {
             val arcCenterX = x + dir * 44f
             tempRect.set(arcCenterX - 58f, y - 58f, arcCenterX + 58f, y + 58f)
@@ -795,10 +1105,9 @@ class GameRenderer {
     }
 
     private fun drawProjectiles(canvas: Canvas, state: GameState) {
-        val isHanoi = state.level.arenaTheme == ArenaTheme.HANOI
         for (projectile in state.projectiles) {
-            when {
-                projectile.fromPlayer -> {
+            when (projectile.kind) {
+                ProjectileKind.PLAYER_BOLT -> {
                     tempRect.set(
                         projectile.x - projectile.radius * 0.55f,
                         projectile.y - projectile.radius * 1.4f,
@@ -807,7 +1116,7 @@ class GameRenderer {
                     )
                     canvas.drawRoundRect(tempRect, 8f, 8f, playerShotPaint)
                 }
-                projectile.isShockwave -> {
+                ProjectileKind.SHOCKWAVE -> {
                     tempRect.set(
                         projectile.x - projectile.radius * 1.3f,
                         projectile.y - projectile.radius * 0.85f,
@@ -822,8 +1131,7 @@ class GameRenderer {
                         shockwaveCorePaint
                     )
                 }
-                isHanoi -> {
-                    // Glowing Hanoi lantern projectile
+                ProjectileKind.LANTERN -> {
                     tempRect.set(
                         projectile.x - projectile.radius * 0.85f,
                         projectile.y - projectile.radius * 1.15f,
@@ -838,7 +1146,41 @@ class GameRenderer {
                         hanoiLanternGoldPaint
                     )
                 }
-                else -> {
+                ProjectileKind.COMPLAINT -> {
+                    val text = projectile.label ?: "CHE ANSIA!"
+                    val halfW = (speechBubbleTextPaint.measureText(text) / 2f + 22f).coerceAtLeast(72f)
+                    val halfH = 26f
+                    tempRect.set(
+                        projectile.x - halfW,
+                        projectile.y - halfH,
+                        projectile.x + halfW,
+                        projectile.y + halfH
+                    )
+                    canvas.drawRoundRect(tempRect, 16f, 16f, speechBubbleBgPaint)
+                    canvas.drawRoundRect(tempRect, 16f, 16f, speechBubbleBorderPaint)
+                    canvas.drawText(text, projectile.x, projectile.y + 8f, speechBubbleTextPaint)
+                }
+                ProjectileKind.DRONE -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val rotorJitter = sin(state.elapsedTime * 40f) * 6f
+                    // Drone arms & spinning rotors
+                    canvas.drawLine(x - 30f, y - 16f, x - 8f, y - 16f + rotorJitter * 0.2f, droneRotorPaint)
+                    canvas.drawLine(x + 8f, y - 16f, x + 30f, y - 16f - rotorJitter * 0.2f, droneRotorPaint)
+                    tempRect.set(x - 24f, y - 10f, x + 24f, y + 12f)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, droneBodyPaint)
+                    canvas.drawCircle(x, y + 1f, 6f, droneLedPaint)
+                }
+                ProjectileKind.CAMERA_FLASH -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius * 1.3f
+                    canvas.drawCircle(x, y, r, cameraFlashOuterPaint)
+                    canvas.drawLine(x - r * 1.2f, y, x + r * 1.2f, y, cameraFlashInnerPaint)
+                    canvas.drawLine(x, y - r * 1.2f, x, y + r * 1.2f, cameraFlashInnerPaint)
+                    canvas.drawCircle(x, y, r * 0.55f, cameraFlashInnerPaint)
+                }
+                ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
                     canvas.drawCircle(
                         projectile.x,

@@ -8,7 +8,9 @@ enum class BattleMode {
 enum class ArenaTheme {
     SPACE,
     IRON_ARENA,
-    HANOI
+    HANOI,
+    ZURICH,
+    STUDIO
 }
 
 data class BossLevel(
@@ -80,7 +82,41 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val levels: List<BossLevel> = listOf(LEVEL_1, LEVEL_2, LEVEL_3)
+    val LEVEL_4 = BossLevel(
+        id = 4,
+        title = "LIVELLO 4",
+        bossName = "LOLLO ZURICH",
+        subtitle = "Zurigo • Senza scudo contro lamentele a raffica",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.ZURICH,
+        hasShield = false,
+        bossMaxHp = 150,
+        bossBaseSpeed = 210f,
+        bossAttackInterval = 1.55f,
+        bossEnragedAttackInterval = 1.1f,
+        bossProjectileSpeed = 510f,
+        bossEnragedProjectileSpeed = 630f,
+        isUnlocked = true
+    )
+
+    val LEVEL_5 = BossLevel(
+        id = 5,
+        title = "LIVELLO 5",
+        bossName = "IVANONE",
+        subtitle = "Droni, flash fotografici e sparizioni improvvise",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.STUDIO,
+        hasShield = false,
+        bossMaxHp = 160,
+        bossBaseSpeed = 250f,
+        bossAttackInterval = 1.45f,
+        bossEnragedAttackInterval = 1.05f,
+        bossProjectileSpeed = 560f,
+        bossEnragedProjectileSpeed = 690f,
+        isUnlocked = true
+    )
+
+    val levels: List<BossLevel> = listOf(LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4, LEVEL_5)
 
     fun findById(id: Int): BossLevel {
         return levels.firstOrNull { it.id == id } ?: LEVEL_1

@@ -14,6 +14,16 @@ enum class BossAction {
     CHARGING
 }
 
+enum class ProjectileKind {
+    PLAYER_BOLT,
+    BOSS_ORB,
+    SHOCKWAVE,
+    LANTERN,
+    COMPLAINT,
+    DRONE,
+    CAMERA_FLASH
+}
+
 data class Player(
     var x: Float,
     var y: Float,
@@ -58,7 +68,9 @@ data class Boss(
     var hitFlashTimer: Float = 0f,
     var action: BossAction = BossAction.PATROL,
     var actionTimer: Float = 0f,
-    var facingDir: Int = -1
+    var facingDir: Int = -1,
+    var vanishTimer: Float = 0f,
+    var hitsSinceVanish: Int = 0
 ) {
     val hpRatio: Float
         get() = (hp.toFloat() / maxHp.toFloat()).coerceIn(0f, 1f)
@@ -68,6 +80,9 @@ data class Boss(
 
     val isEnraged: Boolean
         get() = hp <= maxHp / 2
+
+    val isVanished: Boolean
+        get() = vanishTimer > 0f
 
     companion object {
         const val MAX_HP = 100
@@ -82,8 +97,12 @@ data class Projectile(
     val radius: Float,
     val fromPlayer: Boolean,
     val damage: Int,
-    val isShockwave: Boolean = false
-)
+    val kind: ProjectileKind = if (fromPlayer) ProjectileKind.PLAYER_BOLT else ProjectileKind.BOSS_ORB,
+    val label: String? = null
+) {
+    val isShockwave: Boolean
+        get() = kind == ProjectileKind.SHOCKWAVE
+}
 
 data class HitParticle(
     var x: Float,
