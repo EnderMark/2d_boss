@@ -410,8 +410,8 @@ object LevelCatalog {
         bossMaxHp = 280,
         enableMinions = true,
         bossBaseSpeed = 160f,
-        bossAttackInterval = 1.35f,
-        bossEnragedAttackInterval = 0.95f,
+        bossAttackInterval = 1.93f,
+        bossEnragedAttackInterval = 1.36f,
         bossProjectileSpeed = 460f,
         bossEnragedProjectileSpeed = 560f,
         isUnlocked = true
@@ -429,8 +429,8 @@ object LevelCatalog {
         enableMinions = false,
         enableWeakPoints = true,
         bossBaseSpeed = 155f,
-        bossAttackInterval = 1.25f,
-        bossEnragedAttackInterval = 0.88f,
+        bossAttackInterval = 1.79f,
+        bossEnragedAttackInterval = 1.26f,
         bossProjectileSpeed = 480f,
         bossEnragedProjectileSpeed = 580f,
         isUnlocked = true
