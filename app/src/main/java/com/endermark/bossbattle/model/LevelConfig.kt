@@ -5,12 +5,20 @@ enum class BattleMode {
     MELEE_PLATFORMER
 }
 
+enum class ArenaTheme {
+    SPACE,
+    IRON_ARENA,
+    HANOI
+}
+
 data class BossLevel(
     val id: Int,
     val title: String,
     val bossName: String,
     val subtitle: String,
     val mode: BattleMode,
+    val arenaTheme: ArenaTheme,
+    val hasShield: Boolean = false,
     val bossMaxHp: Int,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
@@ -27,6 +35,8 @@ object LevelCatalog {
         bossName = "GUARDIANO D'OMBRA",
         subtitle = "Navicella • Schiva i colpi e distruggi il custode",
         mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.SPACE,
+        hasShield = false,
         bossMaxHp = 100,
         bossBaseSpeed = 240f,
         bossAttackInterval = 1.1f,
@@ -42,6 +52,8 @@ object LevelCatalog {
         bossName = "COLOSSO DI FERRO",
         subtitle = "Mischia • Salta, fai doppio salto e colpisci da vicino",
         mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.IRON_ARENA,
+        hasShield = false,
         bossMaxHp = 120,
         bossBaseSpeed = 165f,
         bossAttackInterval = 2.0f,
@@ -51,7 +63,24 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val levels: List<BossLevel> = listOf(LEVEL_1, LEVEL_2)
+    val LEVEL_3 = BossLevel(
+        id = 3,
+        title = "LIVELLO 3",
+        bossName = "CHAN",
+        subtitle = "Hanoi • Spada e scudo contro la guerriera delle lanterne",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.HANOI,
+        hasShield = true,
+        bossMaxHp = 140,
+        bossBaseSpeed = 230f,
+        bossAttackInterval = 1.65f,
+        bossEnragedAttackInterval = 1.2f,
+        bossProjectileSpeed = 540f,
+        bossEnragedProjectileSpeed = 660f,
+        isUnlocked = true
+    )
+
+    val levels: List<BossLevel> = listOf(LEVEL_1, LEVEL_2, LEVEL_3)
 
     fun findById(id: Int): BossLevel {
         return levels.firstOrNull { it.id == id } ?: LEVEL_1

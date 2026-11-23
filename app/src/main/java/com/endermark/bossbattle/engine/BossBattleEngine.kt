@@ -1,5 +1,6 @@
 package com.endermark.bossbattle.engine
 
+import com.endermark.bossbattle.model.ArenaTheme
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossAction
@@ -55,6 +56,10 @@ class BossBattleEngine(
         moveInput = direction.coerceIn(-1, 1)
     }
 
+    fun setBlocking(blocking: Boolean) {
+        state.player.isBlocking = level.hasShield && blocking && state.status == GameStatus.PLAYING
+    }
+
     fun triggerJump(): Boolean {
         if (state.status != GameStatus.PLAYING || level.mode != BattleMode.MELEE_PLATFORMER) {
             return false
@@ -81,7 +86,7 @@ class BossBattleEngine(
             return false
         }
         val player = state.player
-        if (player.meleeCooldown > 0f) {
+        if (player.meleeCooldown > 0f || player.isBlocking) {
             return false
         }
         player.meleeTimer = MELEE_DURATION
@@ -114,6 +119,8 @@ class BossBattleEngine(
                 meleeTimer = 0f
                 meleeCooldown = 0f
                 meleeHitApplied = false
+                isBlocking = false
+                shieldFlashTimer = 0f
             }
             state.boss.apply {
                 x = state.worldWidth * 0.76f
@@ -142,6 +149,8 @@ class BossBattleEngine(
                 meleeTimer = 0f
                 meleeCooldown = 0f
                 meleeHitApplied = false
+                isBlocking = false
+                shieldFlashTimer = 0f
             }
             state.boss.apply {
                 x = state.worldWidth / 2f
@@ -209,7 +218,8 @@ class BossBattleEngine(
 
     private fun updateMeleePlayer(dt: Float) {
         val player = state.player
-        player.vx = moveInput * PLATFORMER_MOVE_SPEED
+        val speedFactor = if (player.isBlocking) SHIELD_MOVE_MULTIPLIER else 1f
+        player.vx = moveInput * PLATFORMER_MOVE_SPEED * speedFactor
         if (moveInput != 0) {
             player.facingDir = moveInput
         }
@@ -239,6 +249,9 @@ class BossBattleEngine(
         }
         if (player.meleeCooldown > 0f) {
             player.meleeCooldown = max(0f, player.meleeCooldown - dt)
+        }
+        if (player.shieldFlashTimer > 0f) {
+            player.shieldFlashTimer = max(0f, player.shieldFlashTimer - dt)
         }
     }
 
@@ -311,7 +324,11 @@ class BossBattleEngine(
             BossAction.TELEGRAPH_SHOCKWAVE -> {
                 boss.actionTimer -= dt
                 if (boss.actionTimer <= 0f) {
-                    spawnGroundShockwaves()
+                    if (level.arenaTheme == ArenaTheme.HANOI) {
+                        spawnChanLanternAttack()
+                    } else {
+                        spawnGroundShockwaves()
+                    }
                     boss.action = BossAction.PATROL
                     boss.attackCooldown = if (boss.isEnraged) {
                         level.bossEnragedAttackInterval
@@ -331,7 +348,17 @@ class BossBattleEngine(
             }
 
             BossAction.CHARGING -> {
-                val chargeSpeed = if (boss.isEnraged) BOSS_ENRAGED_CHARGE_SPEED else BOSS_CHARGE_SPEED
+                val baseCharge = if (level.arenaTheme == ArenaTheme.HANOI) {
+                    CHAN_CHARGE_SPEED
+                } else {
+                    BOSS_CHARGE_SPEED
+                }
+                val enragedCharge = if (level.arenaTheme == ArenaTheme.HANOI) {
+                    CHAN_ENRAGED_CHARGE_SPEED
+                } else {
+                    BOSS_ENRAGED_CHARGE_SPEED
+                }
+                val chargeSpeed = if (boss.isEnraged) enragedCharge else baseCharge
                 boss.x += boss.facingDir * chargeSpeed * dt
                 if (boss.x <= minX || boss.x >= maxX) {
                     boss.x = boss.x.coerceIn(minX, maxX)
@@ -393,15 +420,30 @@ class BossBattleEngine(
                 )
             ) {
                 val pushDir = if (player.x < boss.x) -1 else 1
-                player.x = (player.x + pushDir * 60f).coerceIn(
+                player.x = (player.x + pushDir * 64f).coerceIn(
                     player.radius + ARENA_PADDING,
                     state.worldWidth - player.radius - ARENA_PADDING
                 )
-                player.vy = -420f
-                player.onGround = false
-                applyDamageToPlayer(1)
-                if (state.status != GameStatus.PLAYING) {
-                    return
+                if (player.isBlocking) {
+                    player.shieldFlashTimer = SHIELD_FLASH_DURATION
+                    player.invulnerableTimer = 0.25f
+                    if (boss.action == BossAction.CHARGING) {
+                        boss.action = BossAction.PATROL
+                        boss.attackCooldown = level.bossAttackInterval
+                    }
+                    spawnHitParticles(
+                        player.x - pushDir * player.radius,
+                        player.y,
+                        COLOR_SHIELD_BLOCK_SPARK,
+                        10
+                    )
+                } else {
+                    player.vy = -420f
+                    player.onGround = false
+                    applyDamageToPlayer(1)
+                    if (state.status != GameStatus.PLAYING) {
+                        return
+                    }
                 }
             }
         }
@@ -422,15 +464,26 @@ class BossBattleEngine(
                     }
                 }
             } else {
-                if (!player.isInvulnerable && circlesCollide(
+                if (circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         player.x, player.y, player.radius
                     )
                 ) {
-                    iterator.remove()
-                    applyDamageToPlayer(projectile.damage)
-                    if (state.status != GameStatus.PLAYING) {
-                        return
+                    if (player.isBlocking) {
+                        iterator.remove()
+                        player.shieldFlashTimer = SHIELD_FLASH_DURATION
+                        spawnHitParticles(
+                            projectile.x,
+                            projectile.y,
+                            COLOR_SHIELD_BLOCK_SPARK,
+                            9
+                        )
+                    } else if (!player.isInvulnerable) {
+                        iterator.remove()
+                        applyDamageToPlayer(projectile.damage)
+                        if (state.status != GameStatus.PLAYING) {
+                            return
+                        }
                     }
                 }
             }
@@ -505,6 +558,38 @@ class BossBattleEngine(
                     radius = 18f,
                     fromPlayer = false,
                     damage = 1
+                )
+            )
+        }
+    }
+
+    private fun spawnChanLanternAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed
+        } else {
+            level.bossProjectileSpeed
+        }
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.22, baseAngle, baseAngle + 0.22)
+        } else {
+            listOf(baseAngle - 0.12, baseAngle + 0.08)
+        }
+
+        spawnHitParticles(boss.x, boss.y - 12f, COLOR_SHIELD_BLOCK_SPARK, 8)
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.4f),
+                    y = boss.y - 10f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 20f,
+                    fromPlayer = false,
+                    damage = 1,
+                    isShockwave = false
                 )
             )
         }
@@ -594,7 +679,11 @@ class BossBattleEngine(
     ): GameState {
         val isMelee = level.mode == BattleMode.MELEE_PLATFORMER
         val playerRadius = 36f
-        val bossRadius = if (isMelee) 84f else 88f
+        val bossRadius = when {
+            level.arenaTheme == ArenaTheme.HANOI -> 64f
+            isMelee -> 84f
+            else -> 88f
+        }
         return GameState(
             level = level,
             worldWidth = worldWidth,
@@ -636,6 +725,8 @@ class BossBattleEngine(
         private const val PLAYER_INVULNERABLE_DURATION = 1.0f
 
         private const val PLATFORMER_MOVE_SPEED = 460f
+        private const val SHIELD_MOVE_MULTIPLIER = 0.55f
+        private const val SHIELD_FLASH_DURATION = 0.18f
         private const val GRAVITY = 2600f
         private const val JUMP_VELOCITY = -1020f
         private const val DOUBLE_JUMP_VELOCITY = -920f
@@ -648,6 +739,8 @@ class BossBattleEngine(
         private const val BOSS_ENRAGED_SPEED_MULTIPLIER = 1.45f
         private const val BOSS_CHARGE_SPEED = 740f
         private const val BOSS_ENRAGED_CHARGE_SPEED = 900f
+        private const val CHAN_CHARGE_SPEED = 820f
+        private const val CHAN_ENRAGED_CHARGE_SPEED = 980f
         private const val BOSS_HIT_FLASH_DURATION = 0.08f
         private const val BOSS_HP_TRAIL_SPEED = 32f
         private const val SPREAD_ANGLE_RAD = 0.28
@@ -659,5 +752,6 @@ class BossBattleEngine(
         const val COLOR_PLAYER_HIT_SPARK = 0xFF4FC3F7.toInt()
         const val COLOR_JUMP_DUST = 0xFFB0BEC5.toInt()
         const val COLOR_DOUBLE_JUMP_SPARK = 0xFF80DEEA.toInt()
+        const val COLOR_SHIELD_BLOCK_SPARK = 0xFFFFE082.toInt()
     }
 }

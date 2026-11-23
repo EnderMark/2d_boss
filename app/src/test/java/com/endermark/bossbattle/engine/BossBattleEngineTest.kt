@@ -1,5 +1,6 @@
 package com.endermark.bossbattle.engine
 
+import com.endermark.bossbattle.model.ArenaTheme
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossLevel
@@ -15,8 +16,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsLevelOneAndLevelTwo() {
-        assertEquals(2, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllThreeLevels() {
+        assertEquals(3, LevelCatalog.levels.size)
 
         val level1 = LevelCatalog.levels[0]
         assertEquals(1, level1.id)
@@ -29,20 +30,31 @@ class BossBattleEngineTest {
         assertEquals("LIVELLO 2", level2.title)
         assertEquals("COLOSSO DI FERRO", level2.bossName)
         assertEquals(BattleMode.MELEE_PLATFORMER, level2.mode)
+        assertFalse(level2.hasShield)
+
+        val level3 = LevelCatalog.levels[2]
+        assertEquals(3, level3.id)
+        assertEquals("LIVELLO 3", level3.title)
+        assertEquals("CHAN", level3.bossName)
+        assertEquals(BattleMode.MELEE_PLATFORMER, level3.mode)
+        assertEquals(ArenaTheme.HANOI, level3.arenaTheme)
+        assertTrue(level3.hasShield)
 
         assertEquals(level1, LevelCatalog.findById(1))
         assertEquals(level2, LevelCatalog.findById(2))
+        assertEquals(level3, LevelCatalog.findById(3))
         assertEquals(level1, LevelCatalog.findById(999))
     }
 
     @Test
     fun engineInitializesBossFromSelectedLevel() {
         val customLevel = BossLevel(
-            id = 3,
-            title = "LIVELLO 3",
+            id = 4,
+            title = "LIVELLO 4",
             bossName = "TITANO DI FUOCO",
             subtitle = "Test",
             mode = BattleMode.SHOOTER,
+            arenaTheme = ArenaTheme.SPACE,
             bossMaxHp = 150,
             bossBaseSpeed = 300f,
             bossAttackInterval = 0.8f,
@@ -171,7 +183,6 @@ class BossBattleEngineTest {
         assertTrue(engine.state.player.x < afterRightX)
         assertEquals(-1, engine.state.player.facingDir)
 
-        // First jump and double jump succeed; third jump in mid-air fails
         assertTrue(engine.triggerJump())
         engine.update(0.05f)
         assertFalse(engine.state.player.onGround)
@@ -188,7 +199,6 @@ class BossBattleEngineTest {
         val boss = engine.state.boss
         val initialBossHp = boss.hp
 
-        // Out of melee range: attack does not damage boss and spawns no player projectiles
         player.x = 120f
         boss.x = 850f
         assertTrue(engine.triggerMeleeAttack())
@@ -196,7 +206,6 @@ class BossBattleEngineTest {
         assertEquals(initialBossHp, boss.hp)
         assertTrue(engine.state.projectiles.none { it.fromPlayer })
 
-        // Wait for cooldown, move into melee range facing the boss, and strike
         repeat(10) { engine.update(0.05f) }
         boss.x = 500f
         player.x = boss.x - boss.radius - 40f
@@ -205,5 +214,40 @@ class BossBattleEngineTest {
         engine.update(0.016f)
         assertTrue(boss.hp < initialBossHp)
         assertTrue(engine.state.projectiles.none { it.fromPlayer })
+    }
+
+    @Test
+    fun levelThreeShieldBlocksChanProjectilesWithZeroDamage() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_3)
+        engine.startGame()
+
+        val player = engine.state.player
+        val initialHp = player.hp
+
+        engine.setBlocking(true)
+        assertTrue(player.isBlocking)
+        assertFalse(engine.triggerMeleeAttack())
+
+        engine.state.projectiles.add(
+            Projectile(
+                x = player.x,
+                y = player.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 20f,
+                fromPlayer = false,
+                damage = 1
+            )
+        )
+
+        engine.update(0.016f)
+
+        assertEquals(initialHp, player.hp)
+        assertTrue(player.shieldFlashTimer > 0f)
+        assertTrue(engine.state.projectiles.isEmpty())
+
+        engine.setBlocking(false)
+        assertFalse(player.isBlocking)
+        assertTrue(engine.triggerMeleeAttack())
     }
 }

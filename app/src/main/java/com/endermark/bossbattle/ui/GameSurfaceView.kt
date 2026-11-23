@@ -97,10 +97,12 @@ class GameSurfaceView(
         actionX: Float,
         actionY: Float
     ) {
-        val leftRect = renderer.leftButtonRect()
-        val rightRect = renderer.rightButtonRect()
-        val jumpRect = renderer.jumpButtonRect()
-        val attackRect = renderer.attackButtonRect()
+        val hasShield = level.hasShield
+        val leftRect = renderer.leftButtonRect(hasShield)
+        val rightRect = renderer.rightButtonRect(hasShield)
+        val shieldRect = renderer.shieldButtonRect()
+        val jumpRect = renderer.jumpButtonRect(hasShield)
+        val attackRect = renderer.attackButtonRect(hasShield)
 
         // Discrete button presses for Jump (including double jump) and Melee Attack
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
@@ -111,8 +113,9 @@ class GameSurfaceView(
             }
         }
 
-        // Continuous multi-touch check for Left / Right movement buttons
+        // Continuous multi-touch check for Left / Right movement and Shield hold
         var moveDir = 0
+        var blocking = false
         val ignoreIndex = if (
             action == MotionEvent.ACTION_UP ||
             action == MotionEvent.ACTION_POINTER_UP ||
@@ -130,10 +133,12 @@ class GameSurfaceView(
                 when {
                     leftRect.contains(px, py) -> moveDir = -1
                     rightRect.contains(px, py) -> moveDir = 1
+                    hasShield && shieldRect.contains(px, py) -> blocking = true
                 }
             }
         }
         engine.setMoveInput(moveDir)
+        engine.setBlocking(blocking)
     }
 
     private fun screenToWorld(screenX: Float, screenY: Float): Pair<Float, Float> {

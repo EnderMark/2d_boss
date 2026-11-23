@@ -29,7 +29,9 @@ data class Player(
     var facingDir: Int = 1,
     var meleeTimer: Float = 0f,
     var meleeCooldown: Float = 0f,
-    var meleeHitApplied: Boolean = false
+    var meleeHitApplied: Boolean = false,
+    var isBlocking: Boolean = false,
+    var shieldFlashTimer: Float = 0f
 ) {
     val isInvulnerable: Boolean
         get() = invulnerableTimer > 0f
