@@ -1,6 +1,8 @@
 package com.endermark.bossbattle.engine
 
+import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
+import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.BossLevel
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
@@ -9,10 +11,12 @@ import com.endermark.bossbattle.model.LevelCatalog
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.sign
 import kotlin.math.sin
 
 class BossBattleEngine(
@@ -23,6 +27,8 @@ class BossBattleEngine(
     val state: GameState = createInitialState(level, worldWidth, worldHeight)
 
     private var targetPlayerX: Float = worldWidth / 2f
+    private var moveInput: Int = 0
+    private var nextMeleeBossAttackIsCharge: Boolean = false
 
     fun startGame() {
         resetBattle(GameStatus.PLAYING)
@@ -45,31 +51,112 @@ class BossBattleEngine(
         targetPlayerX = worldX.coerceIn(margin, state.worldWidth - margin)
     }
 
+    fun setMoveInput(direction: Int) {
+        moveInput = direction.coerceIn(-1, 1)
+    }
+
+    fun triggerJump(): Boolean {
+        if (state.status != GameStatus.PLAYING || level.mode != BattleMode.MELEE_PLATFORMER) {
+            return false
+        }
+        val player = state.player
+        if (player.jumpsRemaining <= 0) {
+            return false
+        }
+        val isFirstJump = player.jumpsRemaining == Player.MAX_JUMPS
+        player.vy = if (isFirstJump) JUMP_VELOCITY else DOUBLE_JUMP_VELOCITY
+        player.onGround = false
+        player.jumpsRemaining -= 1
+        spawnHitParticles(
+            x = player.x,
+            y = player.y + player.radius,
+            color = if (isFirstJump) COLOR_JUMP_DUST else COLOR_DOUBLE_JUMP_SPARK,
+            count = if (isFirstJump) 5 else 8
+        )
+        return true
+    }
+
+    fun triggerMeleeAttack(): Boolean {
+        if (state.status != GameStatus.PLAYING || level.mode != BattleMode.MELEE_PLATFORMER) {
+            return false
+        }
+        val player = state.player
+        if (player.meleeCooldown > 0f) {
+            return false
+        }
+        player.meleeTimer = MELEE_DURATION
+        player.meleeCooldown = MELEE_COOLDOWN
+        player.meleeHitApplied = false
+        return true
+    }
+
     fun resetBattle(status: GameStatus = GameStatus.READY) {
         state.status = status
         state.elapsedTime = 0f
         state.endStateCooldown = 0f
         state.projectiles.clear()
         state.particles.clear()
+        moveInput = 0
+        nextMeleeBossAttackIsCharge = false
 
-        state.player.apply {
-            x = state.worldWidth / 2f
-            y = state.worldHeight - PLAYER_BOTTOM_OFFSET
-            hp = maxHp
-            invulnerableTimer = 0f
-            fireCooldown = 0.15f
+        if (level.mode == BattleMode.MELEE_PLATFORMER) {
+            state.player.apply {
+                x = state.worldWidth * 0.24f
+                y = state.groundY - radius
+                hp = maxHp
+                invulnerableTimer = 0f
+                fireCooldown = 0f
+                vx = 0f
+                vy = 0f
+                onGround = true
+                jumpsRemaining = Player.MAX_JUMPS
+                facingDir = 1
+                meleeTimer = 0f
+                meleeCooldown = 0f
+                meleeHitApplied = false
+            }
+            state.boss.apply {
+                x = state.worldWidth * 0.76f
+                y = state.groundY - radius
+                hp = maxHp
+                displayedHp = maxHp.toFloat()
+                velocityX = -level.bossBaseSpeed
+                attackCooldown = 1.2f
+                hitFlashTimer = 0f
+                action = BossAction.PATROL
+                actionTimer = 0f
+                facingDir = -1
+            }
+        } else {
+            state.player.apply {
+                x = state.worldWidth / 2f
+                y = state.worldHeight - PLAYER_BOTTOM_OFFSET
+                hp = maxHp
+                invulnerableTimer = 0f
+                fireCooldown = 0.15f
+                vx = 0f
+                vy = 0f
+                onGround = true
+                jumpsRemaining = Player.MAX_JUMPS
+                facingDir = 1
+                meleeTimer = 0f
+                meleeCooldown = 0f
+                meleeHitApplied = false
+            }
+            state.boss.apply {
+                x = state.worldWidth / 2f
+                y = BOSS_TOP_OFFSET
+                hp = maxHp
+                displayedHp = maxHp.toFloat()
+                velocityX = level.bossBaseSpeed
+                attackCooldown = 0.9f
+                hitFlashTimer = 0f
+                action = BossAction.PATROL
+                actionTimer = 0f
+                facingDir = 1
+            }
         }
         targetPlayerX = state.player.x
-
-        state.boss.apply {
-            x = state.worldWidth / 2f
-            y = BOSS_TOP_OFFSET
-            hp = maxHp
-            displayedHp = maxHp.toFloat()
-            velocityX = level.bossBaseSpeed
-            attackCooldown = 0.9f
-            hitFlashTimer = 0f
-        }
     }
 
     fun update(dtSeconds: Float) {
@@ -85,20 +172,25 @@ class BossBattleEngine(
             return
         }
 
-        updatePlayer(dt)
-        updateBoss(dt)
+        if (level.mode == BattleMode.MELEE_PLATFORMER) {
+            updateMeleePlayer(dt)
+            updateMeleeBoss(dt)
+        } else {
+            updateShooterPlayer(dt)
+            updateShooterBoss(dt)
+        }
         updateProjectiles(dt)
         resolveCollisions()
     }
 
-    private fun updatePlayer(dt: Float) {
+    private fun updateShooterPlayer(dt: Float) {
         val player = state.player
         val dx = targetPlayerX - player.x
         val maxStep = PLAYER_MOVE_SPEED * dt
-        player.x = if (kotlin.math.abs(dx) <= maxStep) {
+        player.x = if (abs(dx) <= maxStep) {
             targetPlayerX
         } else {
-            player.x + kotlin.math.sign(dx) * maxStep
+            player.x + sign(dx) * maxStep
         }
 
         val margin = player.radius + ARENA_PADDING
@@ -115,7 +207,42 @@ class BossBattleEngine(
         }
     }
 
-    private fun updateBoss(dt: Float) {
+    private fun updateMeleePlayer(dt: Float) {
+        val player = state.player
+        player.vx = moveInput * PLATFORMER_MOVE_SPEED
+        if (moveInput != 0) {
+            player.facingDir = moveInput
+        }
+
+        player.vy += GRAVITY * dt
+        player.x += player.vx * dt
+        player.y += player.vy * dt
+
+        val margin = player.radius + ARENA_PADDING
+        player.x = player.x.coerceIn(margin, state.worldWidth - margin)
+
+        val floorY = state.groundY - player.radius
+        if (player.y >= floorY) {
+            player.y = floorY
+            player.vy = 0f
+            player.onGround = true
+            player.jumpsRemaining = Player.MAX_JUMPS
+        } else {
+            player.onGround = false
+        }
+
+        if (player.invulnerableTimer > 0f) {
+            player.invulnerableTimer = max(0f, player.invulnerableTimer - dt)
+        }
+        if (player.meleeTimer > 0f) {
+            player.meleeTimer = max(0f, player.meleeTimer - dt)
+        }
+        if (player.meleeCooldown > 0f) {
+            player.meleeCooldown = max(0f, player.meleeCooldown - dt)
+        }
+    }
+
+    private fun updateShooterBoss(dt: Float) {
         val boss = state.boss
         if (boss.hitFlashTimer > 0f) {
             boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
@@ -128,10 +255,10 @@ class BossBattleEngine(
         val maxX = state.worldWidth - boss.radius - ARENA_PADDING
         if (boss.x <= minX) {
             boss.x = minX
-            boss.velocityX = kotlin.math.abs(boss.velocityX)
+            boss.velocityX = abs(boss.velocityX)
         } else if (boss.x >= maxX) {
             boss.x = maxX
-            boss.velocityX = -kotlin.math.abs(boss.velocityX)
+            boss.velocityX = -abs(boss.velocityX)
         }
 
         boss.attackCooldown -= dt
@@ -141,6 +268,85 @@ class BossBattleEngine(
                 level.bossEnragedAttackInterval
             } else {
                 level.bossAttackInterval
+            }
+        }
+    }
+
+    private fun updateMeleeBoss(dt: Float) {
+        val boss = state.boss
+        val player = state.player
+        if (boss.hitFlashTimer > 0f) {
+            boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
+        }
+
+        val minX = boss.radius + ARENA_PADDING
+        val maxX = state.worldWidth - boss.radius - ARENA_PADDING
+        boss.y = state.groundY - boss.radius
+
+        when (boss.action) {
+            BossAction.PATROL -> {
+                val dx = player.x - boss.x
+                if (abs(dx) > 12f) {
+                    boss.facingDir = if (dx >= 0f) 1 else -1
+                }
+                val speed = level.bossBaseSpeed * if (boss.isEnraged) 1.35f else 1f
+                if (abs(dx) > boss.radius + player.radius + 55f) {
+                    boss.x += boss.facingDir * speed * dt
+                }
+                boss.x = boss.x.coerceIn(minX, maxX)
+
+                boss.attackCooldown -= dt
+                if (boss.attackCooldown <= 0f) {
+                    if (nextMeleeBossAttackIsCharge) {
+                        boss.action = BossAction.TELEGRAPH_CHARGE
+                        boss.actionTimer = if (boss.isEnraged) 0.38f else 0.5f
+                    } else {
+                        boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+                        boss.actionTimer = if (boss.isEnraged) 0.35f else 0.45f
+                    }
+                    nextMeleeBossAttackIsCharge = !nextMeleeBossAttackIsCharge
+                }
+            }
+
+            BossAction.TELEGRAPH_SHOCKWAVE -> {
+                boss.actionTimer -= dt
+                if (boss.actionTimer <= 0f) {
+                    spawnGroundShockwaves()
+                    boss.action = BossAction.PATROL
+                    boss.attackCooldown = if (boss.isEnraged) {
+                        level.bossEnragedAttackInterval
+                    } else {
+                        level.bossAttackInterval
+                    }
+                }
+            }
+
+            BossAction.TELEGRAPH_CHARGE -> {
+                boss.facingDir = if (player.x >= boss.x) 1 else -1
+                boss.actionTimer -= dt
+                if (boss.actionTimer <= 0f) {
+                    boss.action = BossAction.CHARGING
+                    boss.actionTimer = 0.65f
+                }
+            }
+
+            BossAction.CHARGING -> {
+                val chargeSpeed = if (boss.isEnraged) BOSS_ENRAGED_CHARGE_SPEED else BOSS_CHARGE_SPEED
+                boss.x += boss.facingDir * chargeSpeed * dt
+                if (boss.x <= minX || boss.x >= maxX) {
+                    boss.x = boss.x.coerceIn(minX, maxX)
+                    boss.actionTimer = 0f
+                    spawnHitParticles(boss.x, state.groundY - 24f, COLOR_BOSS_HIT_SPARK, 8)
+                }
+                boss.actionTimer -= dt
+                if (boss.actionTimer <= 0f) {
+                    boss.action = BossAction.PATROL
+                    boss.attackCooldown = if (boss.isEnraged) {
+                        level.bossEnragedAttackInterval
+                    } else {
+                        level.bossAttackInterval
+                    }
+                }
             }
         }
     }
@@ -165,8 +371,42 @@ class BossBattleEngine(
     private fun resolveCollisions() {
         val boss = state.boss
         val player = state.player
-        val iterator = state.projectiles.iterator()
 
+        if (level.mode == BattleMode.MELEE_PLATFORMER) {
+            // Player melee swing vs Boss
+            if (player.isAttacking && !player.meleeHitApplied) {
+                val strikeX = player.x + player.facingDir * MELEE_REACH_OFFSET
+                val strikeY = player.y
+                if (circlesCollide(strikeX, strikeY, MELEE_HIT_RADIUS, boss.x, boss.y, boss.radius)) {
+                    player.meleeHitApplied = true
+                    applyDamageToBoss(MELEE_DAMAGE, strikeX, strikeY)
+                    if (state.status != GameStatus.PLAYING) {
+                        return
+                    }
+                }
+            }
+
+            // Boss body contact vs Player
+            if (!player.isInvulnerable && circlesCollide(
+                    player.x, player.y, player.radius * 0.9f,
+                    boss.x, boss.y, boss.radius * 0.85f
+                )
+            ) {
+                val pushDir = if (player.x < boss.x) -1 else 1
+                player.x = (player.x + pushDir * 60f).coerceIn(
+                    player.radius + ARENA_PADDING,
+                    state.worldWidth - player.radius - ARENA_PADDING
+                )
+                player.vy = -420f
+                player.onGround = false
+                applyDamageToPlayer(1)
+                if (state.status != GameStatus.PLAYING) {
+                    return
+                }
+            }
+        }
+
+        val iterator = state.projectiles.iterator()
         while (iterator.hasNext()) {
             val projectile = iterator.next()
             if (projectile.fromPlayer) {
@@ -201,7 +441,7 @@ class BossBattleEngine(
         val boss = state.boss
         boss.hp = max(0, boss.hp - damage)
         boss.hitFlashTimer = BOSS_HIT_FLASH_DURATION
-        spawnHitParticles(hitX, hitY, color = COLOR_BOSS_HIT_SPARK, count = 7)
+        spawnHitParticles(hitX, hitY, color = COLOR_BOSS_HIT_SPARK, count = 8)
 
         if (boss.hp <= 0) {
             state.status = GameStatus.VICTORY
@@ -270,6 +510,31 @@ class BossBattleEngine(
         }
     }
 
+    private fun spawnGroundShockwaves() {
+        val boss = state.boss
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed
+        } else {
+            level.bossProjectileSpeed
+        }
+        val shockwaveY = state.groundY - 26f
+        spawnHitParticles(boss.x, state.groundY - 10f, COLOR_VICTORY_SPARK, 10)
+        for (dir in listOf(-1f, 1f)) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + dir * (boss.radius * 0.5f),
+                    y = shockwaveY,
+                    vx = dir * speed,
+                    vy = 0f,
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    isShockwave = true
+                )
+            )
+        }
+    }
+
     private fun spawnHitParticles(x: Float, y: Float, color: Int, count: Int) {
         for (i in 0 until count) {
             val angle = (2.0 * PI * i) / count
@@ -327,30 +592,37 @@ class BossBattleEngine(
         worldWidth: Float,
         worldHeight: Float
     ): GameState {
+        val isMelee = level.mode == BattleMode.MELEE_PLATFORMER
+        val playerRadius = 36f
+        val bossRadius = if (isMelee) 84f else 88f
         return GameState(
             level = level,
             worldWidth = worldWidth,
             worldHeight = worldHeight,
             status = GameStatus.READY,
             player = Player(
-                x = worldWidth / 2f,
-                y = worldHeight - PLAYER_BOTTOM_OFFSET
+                x = if (isMelee) worldWidth * 0.24f else worldWidth / 2f,
+                y = if (isMelee) DEFAULT_GROUND_Y - playerRadius else worldHeight - PLAYER_BOTTOM_OFFSET,
+                radius = playerRadius
             ),
             boss = Boss(
                 name = level.bossName,
-                x = worldWidth / 2f,
-                y = BOSS_TOP_OFFSET,
+                x = if (isMelee) worldWidth * 0.76f else worldWidth / 2f,
+                y = if (isMelee) DEFAULT_GROUND_Y - bossRadius else BOSS_TOP_OFFSET,
+                radius = bossRadius,
                 hp = level.bossMaxHp,
                 maxHp = level.bossMaxHp,
                 displayedHp = level.bossMaxHp.toFloat(),
-                velocityX = level.bossBaseSpeed
-            )
+                velocityX = if (isMelee) -level.bossBaseSpeed else level.bossBaseSpeed
+            ),
+            groundY = DEFAULT_GROUND_Y
         )
     }
 
     companion object {
         const val DEFAULT_WORLD_WIDTH = 1000f
         const val DEFAULT_WORLD_HEIGHT = 1600f
+        const val DEFAULT_GROUND_Y = 1260f
 
         private const val MAX_DT = 0.05f
         private const val ARENA_PADDING = 36f
@@ -363,12 +635,19 @@ class BossBattleEngine(
         private const val PLAYER_SHOT_DAMAGE = 5
         private const val PLAYER_INVULNERABLE_DURATION = 1.0f
 
-        private const val BOSS_BASE_SPEED = 240f
+        private const val PLATFORMER_MOVE_SPEED = 460f
+        private const val GRAVITY = 2600f
+        private const val JUMP_VELOCITY = -1020f
+        private const val DOUBLE_JUMP_VELOCITY = -920f
+        private const val MELEE_DURATION = 0.20f
+        private const val MELEE_COOLDOWN = 0.34f
+        private const val MELEE_REACH_OFFSET = 64f
+        private const val MELEE_HIT_RADIUS = 76f
+        private const val MELEE_DAMAGE = 10
+
         private const val BOSS_ENRAGED_SPEED_MULTIPLIER = 1.45f
-        private const val BOSS_ATTACK_INTERVAL = 1.1f
-        private const val BOSS_ENRAGED_ATTACK_INTERVAL = 0.9f
-        private const val BOSS_PROJECTILE_SPEED = 520f
-        private const val BOSS_ENRAGED_PROJECTILE_SPEED = 600f
+        private const val BOSS_CHARGE_SPEED = 740f
+        private const val BOSS_ENRAGED_CHARGE_SPEED = 900f
         private const val BOSS_HIT_FLASH_DURATION = 0.08f
         private const val BOSS_HP_TRAIL_SPEED = 32f
         private const val SPREAD_ANGLE_RAD = 0.28
@@ -378,5 +657,7 @@ class BossBattleEngine(
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()
         const val COLOR_VICTORY_SPARK = 0xFFFF7043.toInt()
         const val COLOR_PLAYER_HIT_SPARK = 0xFF4FC3F7.toInt()
+        const val COLOR_JUMP_DUST = 0xFFB0BEC5.toInt()
+        const val COLOR_DOUBLE_JUMP_SPARK = 0xFF80DEEA.toInt()
     }
 }

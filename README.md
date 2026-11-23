@@ -1,25 +1,26 @@
 # 2D Boss Battle (Android)
 
-Applicazione Android in Kotlin per un gioco 2D incentrato su una Boss Battle.
+Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle.
 
-## Funzionalità
+## Livelli disponibili
 
-- **Menù dei livelli**: schermata iniziale di selezione livello con il **Livello 1** (`GUARDIANO D'OMBRA`), strutturata tramite `LevelCatalog` per aggiungere facilmente nuovi boss e livelli in futuro.
-- **Controlli touch**: trascina il dito sullo schermo per spostare il giocatore lungo l'asse orizzontale e schivare i colpi del boss. Il giocatore spara automaticamente verso l'alto durante il combattimento.
-- **Boss & Barra della Vita**:
-  - Barra della vita del boss in alto con nome, valore HP (`100 / 100 HP`) e animazione fluida del danno subito.
-  - Il boss pattuglia l'arena e lancia proiettili mirati verso il giocatore.
-  - Sotto il 50% di vita entra in **Fase 2**, aumentando velocità e sparando una raffica a 3 proiettili.
-- **Stati di gioco**: schermata pronta, combattimento, vittoria e sconfitta con riavvio rapido o ritorno al **Menù Livelli**.
+- **Menù dei livelli**: schermata iniziale di selezione livello (`LevelSelectActivity`).
+- **Livello 1 — `GUARDIANO D'OMBRA` (Navicella)**:
+  - Trascina il dito per spostarti orizzontalmente e schivare i colpi mentre spari automaticamente.
+  - Sotto il 50% di HP entra in **Fase 2** con raffiche a 3 proiettili.
+- **Livello 2 — `COLOSSO DI FERRO` (Platformer in mischia)**:
+  - Controlli multi-touch dedicati: **◀ / ▶** per muoversi, **SALTA** (supporta **doppio salto**), **COLPO** per attaccare in mischia (nessun proiettile per il giocatore).
+  - Il boss alterna **onde d'urto a terra** (da saltare) e **cariche pesanti** lungo l'arena, accelerando in **Fase 2**.
+- **Barra della vita del Boss**: sempre visibile in alto con nome, badge `FASE 2`, contatore HP e scia animata del danno.
 
 ## Struttura del progetto
 
-- `app/src/main/java/com/endermark/bossbattle/model/LevelConfig.kt`: definizione dei livelli (`BossLevel`) e catalogo (`LevelCatalog`).
+- `app/src/main/java/com/endermark/bossbattle/model/LevelConfig.kt`: definizione dei livelli (`BossLevel`, `BattleMode`) e catalogo (`LevelCatalog`).
 - `app/src/main/java/com/endermark/bossbattle/model/GameModels.kt`: modelli di stato (`Player`, `Boss`, `Projectile`, `HitParticle`, `GameState`).
-- `app/src/main/java/com/endermark/bossbattle/engine/BossBattleEngine.kt`: logica di gioco, fisica 2D, collisioni e gestione HP.
+- `app/src/main/java/com/endermark/bossbattle/engine/BossBattleEngine.kt`: logica di gioco, fisica 2D, doppio salto, combattimento in mischia e IA dei boss.
 - `app/src/main/java/com/endermark/bossbattle/ui/LevelSelectActivity.kt`: menù di selezione livelli (schermata iniziale).
-- `app/src/main/java/com/endermark/bossbattle/ui/GameRenderer.kt`: rendering 2D su `Canvas`, barra della vita del boss e overlay.
-- `app/src/main/java/com/endermark/bossbattle/ui/GameSurfaceView.kt`: `SurfaceView` con game loop a 60 FPS e input touch.
+- `app/src/main/java/com/endermark/bossbattle/ui/GameRenderer.kt`: rendering 2D su `Canvas`, barra della vita del boss e controlli touch.
+- `app/src/main/java/com/endermark/bossbattle/ui/GameSurfaceView.kt`: `SurfaceView` con game loop a 60 FPS e input multi-touch.
 - `app/src/main/java/com/endermark/bossbattle/ui/MainActivity.kt`: activity fullscreen della battaglia.
 
 ## Build e Test

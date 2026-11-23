@@ -7,10 +7,13 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
+import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
+import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.Player
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -24,6 +27,16 @@ class GameRenderer {
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#181D33")
         strokeWidth = 2f
+    }
+
+    private val groundFillPaint = Paint().apply {
+        color = Color.parseColor("#15192B")
+        style = Paint.Style.FILL
+    }
+
+    private val groundLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#4A5378")
+        strokeWidth = 6f
     }
 
     private val bossArmorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -40,14 +53,41 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
+    private val bossTelegraphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(120, 255, 171, 64)
+        style = Paint.Style.STROKE
+        strokeWidth = 10f
+    }
+
     private val playerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#29B6F6")
         style = Paint.Style.FILL
     }
 
+    private val playerLimbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#81D4FA")
+        style = Paint.Style.STROKE
+        strokeWidth = 8f
+        strokeCap = Paint.Cap.ROUND
+    }
+
     private val playerAccentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#E1F5FE")
         style = Paint.Style.FILL
+    }
+
+    private val swordPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#ECEFF1")
+        style = Paint.Style.STROKE
+        strokeWidth = 8f
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val slashArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#80DEEA")
+        style = Paint.Style.STROKE
+        strokeWidth = 16f
+        strokeCap = Paint.Cap.ROUND
     }
 
     private val playerShotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -62,6 +102,16 @@ class GameRenderer {
 
     private val bossShotInnerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FFEB3B")
+        style = Paint.Style.FILL
+    }
+
+    private val shockwavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FF7043")
+        style = Paint.Style.FILL
+    }
+
+    private val shockwaveCorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FFF176")
         style = Paint.Style.FILL
     }
 
@@ -124,6 +174,35 @@ class GameRenderer {
         style = Paint.Style.FILL
     }
 
+    private val controlBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1E2540")
+        style = Paint.Style.FILL
+    }
+
+    private val controlAccentBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2A2038")
+        style = Paint.Style.FILL
+    }
+
+    private val controlBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#5C6BC0")
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+    }
+
+    private val controlAttackBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FF7043")
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+    }
+
+    private val controlLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 34f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
     private val overlayScrimPaint = Paint().apply {
         color = Color.argb(170, 10, 12, 22)
         style = Paint.Style.FILL
@@ -138,7 +217,7 @@ class GameRenderer {
 
     private val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#B0BEC5")
-        textSize = 36f
+        textSize = 34f
         textAlign = Paint.Align.CENTER
     }
 
@@ -149,8 +228,37 @@ class GameRenderer {
         isFakeBoldText = true
     }
 
+    private val menuButtonBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#232946")
+        style = Paint.Style.FILL
+    }
+
+    private val menuButtonBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#5C6BC0")
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+    }
+
+    private val menuButtonTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 34f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
     private val tempRect = RectF()
     private val tempPath = Path()
+
+    fun leftButtonRect(): RectF = RectF(48f, 1360f, 218f, 1520f)
+    fun rightButtonRect(): RectF = RectF(244f, 1360f, 414f, 1520f)
+    fun jumpButtonRect(): RectF = RectF(576f, 1360f, 756f, 1520f)
+    fun attackButtonRect(): RectF = RectF(782f, 1360f, 952f, 1520f)
+
+    fun isMenuButtonHit(worldX: Float, worldY: Float, state: GameState): Boolean {
+        if (state.status == GameStatus.PLAYING) return false
+        val rect = menuButtonRect(state.worldWidth, state.worldHeight)
+        return rect.contains(worldX, worldY)
+    }
 
     fun render(canvas: Canvas, state: GameState) {
         canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), backgroundPaint)
@@ -166,15 +274,32 @@ class GameRenderer {
         canvas.translate(offsetX, offsetY)
         canvas.scale(scale, scale)
 
-        drawArenaGrid(canvas, state.worldWidth, state.worldHeight)
+        val isMelee = state.level.mode == BattleMode.MELEE_PLATFORMER
+        drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
+        if (isMelee) {
+            drawGroundArena(canvas, state)
+        }
+
         drawBossHealthBar(canvas, state.boss, state.worldWidth)
         drawProjectiles(canvas, state)
         drawParticles(canvas, state)
+
         if (state.boss.hp > 0) {
-            drawBoss(canvas, state.boss, state.elapsedTime)
+            if (isMelee) {
+                drawMeleeBoss(canvas, state.boss, state.elapsedTime)
+            } else {
+                drawShooterBoss(canvas, state.boss, state.elapsedTime)
+            }
         }
-        drawPlayer(canvas, state.player, state.elapsedTime)
-        drawPlayerHud(canvas, state.player, state.worldHeight)
+
+        if (isMelee) {
+            drawMeleeCharacter(canvas, state.player, state.elapsedTime)
+            drawPlayerHud(canvas, state.player, baseY = 178f)
+            drawMeleeControls(canvas)
+        } else {
+            drawPlayerShip(canvas, state.player, state.elapsedTime)
+            drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f)
+        }
 
         if (state.status != GameStatus.PLAYING) {
             drawOverlay(canvas, state)
@@ -197,6 +322,11 @@ class GameRenderer {
         }
     }
 
+    private fun drawGroundArena(canvas: Canvas, state: GameState) {
+        canvas.drawRect(0f, state.groundY, state.worldWidth, state.worldHeight, groundFillPaint)
+        canvas.drawLine(0f, state.groundY, state.worldWidth, state.groundY, groundLinePaint)
+    }
+
     private fun drawBossHealthBar(canvas: Canvas, boss: Boss, worldWidth: Float) {
         val marginX = 52f
         val topY = 92f
@@ -216,18 +346,15 @@ class GameRenderer {
             hpTextPaint
         )
 
-        // Bar background
         tempRect.set(marginX, topY, marginX + barWidth, topY + barHeight)
         canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBgPaint)
 
-        // Trailing damage bar
         val trailWidth = barWidth * boss.displayedHpRatio
         if (trailWidth > 0f) {
             tempRect.set(marginX, topY, marginX + trailWidth, topY + barHeight)
             canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barTrailPaint)
         }
 
-        // Actual HP fill
         val fillWidth = barWidth * boss.hpRatio
         if (fillWidth > 0f) {
             val startColor = if (boss.isEnraged) Color.parseColor("#FF5722") else Color.parseColor("#E53935")
@@ -246,12 +373,11 @@ class GameRenderer {
             barFillPaint.shader = null
         }
 
-        // Frame border
         tempRect.set(marginX, topY, marginX + barWidth, topY + barHeight)
         canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBorderPaint)
     }
 
-    private fun drawBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+    private fun drawShooterBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
         val pulse = 1f + 0.04f * sin(elapsedTime * 5f)
         val r = boss.radius * pulse
         val isHit = boss.hitFlashTimer > 0f
@@ -262,7 +388,6 @@ class GameRenderer {
             else -> Color.parseColor("#C62828")
         }
 
-        // Geometric armored boss silhouette
         tempPath.reset()
         tempPath.moveTo(boss.x, boss.y - r * 0.95f)
         tempPath.lineTo(boss.x + r * 0.85f, boss.y - r * 0.35f)
@@ -275,7 +400,6 @@ class GameRenderer {
         canvas.drawPath(tempPath, bossArmorPaint)
         canvas.drawPath(tempPath, bossOutlinePaint)
 
-        // Glowing inner core
         bossCorePaint.color = when {
             isHit -> Color.parseColor("#FFF9C4")
             boss.isEnraged -> Color.parseColor("#FFD740")
@@ -284,7 +408,54 @@ class GameRenderer {
         canvas.drawCircle(boss.x, boss.y + r * 0.05f, r * 0.36f, bossCorePaint)
     }
 
-    private fun drawPlayer(canvas: Canvas, player: Player, elapsedTime: Float) {
+    private fun drawMeleeBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            val auraRadius = r * (1.15f + 0.12f * sin(elapsedTime * 20f))
+            canvas.drawCircle(boss.x, boss.y, auraRadius, bossTelegraphPaint)
+        }
+
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            boss.action == BossAction.CHARGING -> Color.parseColor("#FF5722")
+            boss.isEnraged -> Color.parseColor("#8D2828")
+            else -> Color.parseColor("#546E7A")
+        }
+
+        // Armored Iron Colossus body
+        tempRect.set(boss.x - r * 0.78f, boss.y - r * 0.72f, boss.x + r * 0.78f, boss.y + r * 0.96f)
+        canvas.drawRoundRect(tempRect, 24f, 24f, bossArmorPaint)
+        canvas.drawRoundRect(tempRect, 24f, 24f, bossOutlinePaint)
+
+        // Helmet / crown
+        tempRect.set(boss.x - r * 0.45f, boss.y - r * 1.05f, boss.x + r * 0.45f, boss.y - r * 0.58f)
+        canvas.drawRoundRect(tempRect, 14f, 14f, bossArmorPaint)
+        canvas.drawRoundRect(tempRect, 14f, 14f, bossOutlinePaint)
+
+        // Glowing visor facing player
+        bossCorePaint.color = when {
+            isHit -> Color.parseColor("#FFF9C4")
+            isTelegraphing || boss.isEnraged -> Color.parseColor("#FFD740")
+            else -> Color.parseColor("#FF5252")
+        }
+        val visorOffsetX = boss.facingDir * r * 0.16f
+        tempRect.set(
+            boss.x + visorOffsetX - r * 0.24f,
+            boss.y - r * 0.88f,
+            boss.x + visorOffsetX + r * 0.24f,
+            boss.y - r * 0.72f
+        )
+        canvas.drawRoundRect(tempRect, 8f, 8f, bossCorePaint)
+
+        // Chest core
+        canvas.drawCircle(boss.x, boss.y + r * 0.12f, r * 0.24f, bossCorePaint)
+    }
+
+    private fun drawPlayerShip(canvas: Canvas, player: Player, elapsedTime: Float) {
         if (player.isInvulnerable && ((elapsedTime * 16f).toInt() % 2 == 0)) {
             return
         }
@@ -301,24 +472,112 @@ class GameRenderer {
         canvas.drawCircle(player.x, player.y + r * 0.05f, r * 0.28f, playerAccentPaint)
     }
 
+    private fun drawMeleeCharacter(canvas: Canvas, player: Player, elapsedTime: Float) {
+        if (player.isInvulnerable && ((elapsedTime * 16f).toInt() % 2 == 0)) {
+            return
+        }
+
+        val x = player.x
+        val y = player.y
+        val r = player.radius
+        val dir = player.facingDir.toFloat()
+        val walkSwing = if (player.onGround && abs(player.vx) > 10f) {
+            sin(elapsedTime * 18f) * 14f
+        } else {
+            0f
+        }
+
+        // Legs
+        canvas.drawLine(x - 6f, y + r * 0.3f, x - 12f - walkSwing, y + r, playerLimbPaint)
+        canvas.drawLine(x + 6f, y + r * 0.3f, x + 12f + walkSwing, y + r, playerLimbPaint)
+
+        // Torso
+        tempRect.set(x - 16f, y - r * 0.32f, x + 16f, y + r * 0.38f)
+        canvas.drawRoundRect(tempRect, 10f, 10f, playerPaint)
+
+        // Head
+        canvas.drawCircle(x, y - r * 0.68f, 17f, playerAccentPaint)
+
+        // Sword arm
+        val armStartX = x + dir * 12f
+        val armStartY = y - r * 0.1f
+        val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
+        val swordTipY = if (player.isAttacking) y - 6f else y - 24f
+        canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
+
+        // Glowing melee slash arc
+        if (player.isAttacking) {
+            val arcCenterX = x + dir * 44f
+            tempRect.set(arcCenterX - 58f, y - 58f, arcCenterX + 58f, y + 58f)
+            val startAngle = if (player.facingDir >= 0) -65f else 115f
+            canvas.drawArc(tempRect, startAngle, 130f, false, slashArcPaint)
+        }
+    }
+
+    private fun drawMeleeControls(canvas: Canvas) {
+        drawControlButton(canvas, leftButtonRect(), "◀", isAttack = false)
+        drawControlButton(canvas, rightButtonRect(), "▶", isAttack = false)
+        drawControlButton(canvas, jumpButtonRect(), "SALTA", isAttack = false)
+        drawControlButton(canvas, attackButtonRect(), "COLPO", isAttack = true)
+    }
+
+    private fun drawControlButton(
+        canvas: Canvas,
+        rect: RectF,
+        label: String,
+        isAttack: Boolean
+    ) {
+        canvas.drawRoundRect(
+            rect,
+            24f,
+            24f,
+            if (isAttack) controlAccentBgPaint else controlBgPaint
+        )
+        canvas.drawRoundRect(
+            rect,
+            24f,
+            24f,
+            if (isAttack) controlAttackBorderPaint else controlBorderPaint
+        )
+        canvas.drawText(label, rect.centerX(), rect.centerY() + 12f, controlLabelPaint)
+    }
+
     private fun drawProjectiles(canvas: Canvas, state: GameState) {
         for (projectile in state.projectiles) {
-            if (projectile.fromPlayer) {
-                tempRect.set(
-                    projectile.x - projectile.radius * 0.55f,
-                    projectile.y - projectile.radius * 1.4f,
-                    projectile.x + projectile.radius * 0.55f,
-                    projectile.y + projectile.radius * 1.4f
-                )
-                canvas.drawRoundRect(tempRect, 8f, 8f, playerShotPaint)
-            } else {
-                canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
-                canvas.drawCircle(
-                    projectile.x,
-                    projectile.y,
-                    projectile.radius * 0.5f,
-                    bossShotInnerPaint
-                )
+            when {
+                projectile.fromPlayer -> {
+                    tempRect.set(
+                        projectile.x - projectile.radius * 0.55f,
+                        projectile.y - projectile.radius * 1.4f,
+                        projectile.x + projectile.radius * 0.55f,
+                        projectile.y + projectile.radius * 1.4f
+                    )
+                    canvas.drawRoundRect(tempRect, 8f, 8f, playerShotPaint)
+                }
+                projectile.isShockwave -> {
+                    tempRect.set(
+                        projectile.x - projectile.radius * 1.3f,
+                        projectile.y - projectile.radius * 0.85f,
+                        projectile.x + projectile.radius * 1.3f,
+                        projectile.y + projectile.radius
+                    )
+                    canvas.drawRoundRect(tempRect, 14f, 14f, shockwavePaint)
+                    canvas.drawCircle(
+                        projectile.x,
+                        projectile.y,
+                        projectile.radius * 0.45f,
+                        shockwaveCorePaint
+                    )
+                }
+                else -> {
+                    canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
+                    canvas.drawCircle(
+                        projectile.x,
+                        projectile.y,
+                        projectile.radius * 0.5f,
+                        bossShotInnerPaint
+                    )
+                }
             }
         }
     }
@@ -332,8 +591,7 @@ class GameRenderer {
         }
     }
 
-    private fun drawPlayerHud(canvas: Canvas, player: Player, worldHeight: Float) {
-        val baseY = worldHeight - 76f
+    private fun drawPlayerHud(canvas: Canvas, player: Player, baseY: Float) {
         val startX = 52f
         canvas.drawText("VITA", startX, baseY + 10f, playerHpLabelPaint)
 
@@ -348,30 +606,6 @@ class GameRenderer {
             val paint = if (i < player.hp) heartActivePaint else heartEmptyPaint
             canvas.drawRoundRect(tempRect, 6f, 6f, paint)
         }
-    }
-
-    private val menuButtonBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#232946")
-        style = Paint.Style.FILL
-    }
-
-    private val menuButtonBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#5C6BC0")
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-    }
-
-    private val menuButtonTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = 34f
-        textAlign = Paint.Align.CENTER
-        isFakeBoldText = true
-    }
-
-    fun isMenuButtonHit(worldX: Float, worldY: Float, state: GameState): Boolean {
-        if (state.status == GameStatus.PLAYING) return false
-        val rect = menuButtonRect(state.worldWidth, state.worldHeight)
-        return rect.contains(worldX, worldY)
     }
 
     private fun menuButtonRect(worldWidth: Float, worldHeight: Float): RectF {
@@ -393,10 +627,16 @@ class GameRenderer {
         val centerX = state.worldWidth / 2f
         val centerY = state.worldHeight / 2f
 
+        val readyHint = if (state.level.mode == BattleMode.MELEE_PLATFORMER) {
+            "${state.boss.name} • Muovi, salta (x2) e colpisci"
+        } else {
+            "${state.boss.name} • Trascina per schivare"
+        }
+
         val (title, subtitle, prompt) = when (state.status) {
             GameStatus.READY -> Triple(
                 state.level.title,
-                "${state.boss.name} • Trascina per schivare",
+                readyHint,
                 "Tocca per iniziare"
             )
             GameStatus.VICTORY -> Triple(

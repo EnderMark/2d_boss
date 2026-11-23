@@ -5,13 +5,15 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.endermark.bossbattle.engine.BossBattleEngine
+import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.BossLevel
+import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.LevelCatalog
 import kotlin.math.min
 
 class GameSurfaceView(
     context: Context,
-    level: BossLevel = LevelCatalog.LEVEL_1,
+    private val level: BossLevel = LevelCatalog.LEVEL_1,
     private val onExitToMenu: () -> Unit = {}
 ) : SurfaceView(context), SurfaceHolder.Callback {
 
@@ -51,27 +53,87 @@ class GameSurfaceView(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val (worldX, worldY) = screenToWorld(event.x, event.y)
         var exitRequested = false
         synchronized(stateLock) {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (renderer.isMenuButtonHit(worldX, worldY, engine.state)) {
+            val action = event.actionMasked
+            val actionIndex = event.actionIndex
+            val (actionX, actionY) = screenToWorld(
+                event.getX(actionIndex),
+                event.getY(actionIndex)
+            )
+
+            if (engine.state.status != GameStatus.PLAYING) {
+                if (action == MotionEvent.ACTION_DOWN) {
+                    if (renderer.isMenuButtonHit(actionX, actionY, engine.state)) {
                         exitRequested = true
                     } else {
                         engine.handleTapOrRestart()
-                        engine.setPlayerTargetX(worldX)
+                        if (level.mode == BattleMode.SHOOTER) {
+                            engine.setPlayerTargetX(actionX)
+                        }
                     }
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    engine.setPlayerTargetX(worldX)
+            } else if (level.mode == BattleMode.SHOOTER) {
+                when (action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        val (x, _) = screenToWorld(event.x, event.y)
+                        engine.setPlayerTargetX(x)
+                    }
                 }
+            } else {
+                handleMeleeTouch(event, action, actionIndex, actionX, actionY)
             }
         }
         if (exitRequested) {
             post { onExitToMenu() }
         }
         return true
+    }
+
+    private fun handleMeleeTouch(
+        event: MotionEvent,
+        action: Int,
+        actionIndex: Int,
+        actionX: Float,
+        actionY: Float
+    ) {
+        val leftRect = renderer.leftButtonRect()
+        val rightRect = renderer.rightButtonRect()
+        val jumpRect = renderer.jumpButtonRect()
+        val attackRect = renderer.attackButtonRect()
+
+        // Discrete button presses for Jump (including double jump) and Melee Attack
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
+            if (jumpRect.contains(actionX, actionY)) {
+                engine.triggerJump()
+            } else if (attackRect.contains(actionX, actionY)) {
+                engine.triggerMeleeAttack()
+            }
+        }
+
+        // Continuous multi-touch check for Left / Right movement buttons
+        var moveDir = 0
+        val ignoreIndex = if (
+            action == MotionEvent.ACTION_UP ||
+            action == MotionEvent.ACTION_POINTER_UP ||
+            action == MotionEvent.ACTION_CANCEL
+        ) {
+            actionIndex
+        } else {
+            -1
+        }
+
+        if (action != MotionEvent.ACTION_CANCEL) {
+            for (i in 0 until event.pointerCount) {
+                if (i == ignoreIndex) continue
+                val (px, py) = screenToWorld(event.getX(i), event.getY(i))
+                when {
+                    leftRect.contains(px, py) -> moveDir = -1
+                    rightRect.contains(px, py) -> moveDir = 1
+                }
+            }
+        }
+        engine.setMoveInput(moveDir)
     }
 
     private fun screenToWorld(screenX: Float, screenY: Float): Pair<Float, Float> {
