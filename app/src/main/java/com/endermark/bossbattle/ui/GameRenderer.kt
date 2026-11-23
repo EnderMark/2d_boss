@@ -500,6 +500,7 @@ class GameRenderer {
             ArenaTheme.PARIS -> drawParisBackground(canvas, state)
             ArenaTheme.UBS_ALPS -> drawUbsAlpsBackground(canvas, state)
             ArenaTheme.GYM_DEV -> drawGymDevBackground(canvas, state)
+            ArenaTheme.GOOGLE_ZURICH -> drawGoogleCampusBackground(canvas, state)
             else -> drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
         }
         if (isMelee) {
@@ -519,6 +520,7 @@ class GameRenderer {
                 ArenaTheme.PARIS -> drawLouiseBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.UBS_ALPS -> drawDaisyBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.GYM_DEV -> drawAndreaDatteroBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.GOOGLE_ZURICH -> drawMarcoGoogleBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.IRON_ARENA -> drawMeleeBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.SPACE -> drawShooterBoss(canvas, state.boss, state.elapsedTime)
             }
@@ -1263,6 +1265,20 @@ class GameRenderer {
                     canvas.drawCircle(x, y - 10f, 10f, hanoiLanternGoldPaint)
                     canvas.drawText("200g", x, y + r * 0.55f, speechBubbleTextPaint)
                 }
+                ProjectileKind.DATING_FLEX -> {
+                    val text = projectile.label ?: "SONO PIENO DI MILIONI!"
+                    val halfW = (speechBubbleTextPaint.measureText(text) / 2f + 24f).coerceAtLeast(92f)
+                    val halfH = 28f
+                    tempRect.set(
+                        projectile.x - halfW,
+                        projectile.y - halfH,
+                        projectile.x + halfW,
+                        projectile.y + halfH
+                    )
+                    canvas.drawRoundRect(tempRect, 18f, 18f, hanoiLanternGoldPaint)
+                    canvas.drawRoundRect(tempRect, 18f, 18f, speechBubbleBorderPaint)
+                    canvas.drawText(text, projectile.x, projectile.y + 8f, speechBubbleTextPaint)
+                }
                 ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
                     canvas.drawCircle(
@@ -1273,6 +1289,90 @@ class GameRenderer {
                     )
                 }
             }
+        }
+    }
+
+    private fun drawGoogleCampusBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#111827"),
+                Color.parseColor("#1E293B"),
+                Color.parseColor("#334155")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Modern Google glass office building
+        canvas.drawRect(140f, state.groundY - 420f, 860f, state.groundY, zurichCityPaint)
+        // Four iconic Google color dots
+        val dotColors = intArrayOf(
+            Color.parseColor("#4285F4"),
+            Color.parseColor("#EA4335"),
+            Color.parseColor("#FBBC05"),
+            Color.parseColor("#34A853")
+        )
+        val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        for (i in dotColors.indices) {
+            dotPaint.color = dotColors[i]
+            canvas.drawCircle(365f + i * 90f, state.groundY - 335f, 24f, dotPaint)
+        }
+        canvas.drawText("GOOGLE CAMPUS", 500f, state.groundY - 260f, controlLabelPaint)
+    }
+
+    private fun drawMarcoGoogleBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val dir = boss.facingDir.toFloat()
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.28f + 0.1f * sin(elapsedTime * 22f)), bossTelegraphPaint)
+        }
+
+        // Marco sitting in the open Porsche cockpit
+        val driverY = y - r * 0.42f
+        canvas.drawCircle(x - dir * 8f, driverY - 26f, 22f, if (isHit) bossArmorPaint else skinPaint)
+        tempRect.set(x - dir * 8f - 22f, driverY - 50f, x - dir * 8f + 22f, driverY - 30f)
+        canvas.drawRoundRect(tempRect, 10f, 10f, chanHairPaint)
+        // Camera held out the Porsche window
+        val camX = x + dir * 42f
+        val camY = driverY - 12f
+        tempRect.set(camX - 18f, camY - 12f, camX + 18f, camY + 12f)
+        canvas.drawRoundRect(tempRect, 6f, 6f, droneBodyPaint)
+        canvas.drawCircle(camX + dir * 8f, camY, 8f, cameraFlashOuterPaint)
+
+        // White Porsche 911 coupe body
+        bossArmorPaint.color = if (isHit) Color.parseColor("#FFF59D") else Color.WHITE
+        tempPath.reset()
+        tempPath.moveTo(x - r * 1.25f, y + r * 0.58f)
+        tempPath.lineTo(x - r * 1.15f, y + r * 0.02f)
+        tempPath.lineTo(x - r * 0.55f, y - r * 0.36f)
+        tempPath.lineTo(x + r * 0.45f, y - r * 0.36f)
+        tempPath.lineTo(x + r * 1.18f, y + r * 0.08f)
+        tempPath.lineTo(x + r * 1.25f, y + r * 0.58f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossArmorPaint)
+        canvas.drawPath(tempPath, controlBorderPaint)
+
+        // Glowing headlight
+        canvas.drawCircle(x + dir * r * 1.05f, y + r * 0.24f, 11f, hanoiLanternGoldPaint)
+
+        // Sport wheels with red Porsche brake calipers
+        val wheelY = y + r * 0.64f
+        for (wx in listOf(x - r * 0.72f, x + r * 0.72f)) {
+            canvas.drawCircle(wx, wheelY, 28f, chanHairPaint)
+            canvas.drawCircle(wx, wheelY, 15f, barBorderPaint)
+            canvas.drawCircle(wx, wheelY, 7f, hanoiLanternRedPaint)
         }
     }
 

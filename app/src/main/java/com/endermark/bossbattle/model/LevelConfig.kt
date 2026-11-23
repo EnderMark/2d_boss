@@ -14,7 +14,8 @@ enum class ArenaTheme {
     ZURICH_TAX,
     PARIS,
     UBS_ALPS,
-    GYM_DEV
+    GYM_DEV,
+    GOOGLE_ZURICH
 }
 
 data class BossLevel(
@@ -188,6 +189,23 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_10 = BossLevel(
+        id = 10,
+        title = "LIVELLO 10",
+        bossName = "MARCO DI GOOGLE",
+        subtitle = "Porsche bianca • Dating, milioni e flash fotografici",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.GOOGLE_ZURICH,
+        hasShield = false,
+        bossMaxHp = 220,
+        bossBaseSpeed = 290f,
+        bossAttackInterval = 1.35f,
+        bossEnragedAttackInterval = 0.95f,
+        bossProjectileSpeed = 590f,
+        bossEnragedProjectileSpeed = 720f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -197,7 +215,8 @@ object LevelCatalog {
         LEVEL_6,
         LEVEL_7,
         LEVEL_8,
-        LEVEL_9
+        LEVEL_9,
+        LEVEL_10
     )
 
     fun findById(id: Int): BossLevel {

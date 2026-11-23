@@ -5,6 +5,7 @@ import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.BossLevel
+import com.endermark.bossbattle.model.GameSoundEvent
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.HitParticle
@@ -32,6 +33,18 @@ class BossBattleEngine(
     private var moveInput: Int = 0
     private var nextMeleeBossAttackIsCharge: Boolean = false
     private var complaintIndex: Int = 0
+    private val pendingSoundEvents: MutableList<GameSoundEvent> = mutableListOf()
+
+    fun drainSoundEvents(): List<GameSoundEvent> {
+        if (pendingSoundEvents.isEmpty()) return emptyList()
+        val copy = pendingSoundEvents.toList()
+        pendingSoundEvents.clear()
+        return copy
+    }
+
+    private fun emitSound(event: GameSoundEvent) {
+        pendingSoundEvents.add(event)
+    }
 
     fun startGame() {
         resetBattle(GameStatus.PLAYING)
@@ -74,6 +87,7 @@ class BossBattleEngine(
         player.vy = if (isFirstJump) JUMP_VELOCITY else DOUBLE_JUMP_VELOCITY
         player.onGround = false
         player.jumpsRemaining -= 1
+        emitSound(if (isFirstJump) GameSoundEvent.JUMP else GameSoundEvent.DOUBLE_JUMP)
         spawnHitParticles(
             x = player.x,
             y = player.y + player.radius,
@@ -94,6 +108,7 @@ class BossBattleEngine(
         player.meleeTimer = MELEE_DURATION
         player.meleeCooldown = MELEE_COOLDOWN
         player.meleeHitApplied = false
+        emitSound(GameSoundEvent.ATTACK)
         return true
     }
 
@@ -103,6 +118,7 @@ class BossBattleEngine(
         state.endStateCooldown = 0f
         state.projectiles.clear()
         state.particles.clear()
+        pendingSoundEvents.clear()
         moveInput = 0
         nextMeleeBossAttackIsCharge = false
         complaintIndex = 0
@@ -376,6 +392,7 @@ class BossBattleEngine(
                         ArenaTheme.PARIS -> spawnLouiseSeductionAttack()
                         ArenaTheme.UBS_ALPS -> spawnDaisyScreamAttack()
                         ArenaTheme.GYM_DEV -> spawnAndreaRiceAndDevAttack()
+                        ArenaTheme.GOOGLE_ZURICH -> spawnMarcoPorscheAttack()
                         else -> spawnGroundShockwaves()
                     }
                     boss.action = BossAction.PATROL
@@ -428,12 +445,14 @@ class BossBattleEngine(
                     ArenaTheme.HANOI -> CHAN_CHARGE_SPEED
                     ArenaTheme.PARIS -> LOUISE_EVADE_SPEED
                     ArenaTheme.GYM_DEV -> ANDREA_GRAPPLE_SPEED
+                    ArenaTheme.GOOGLE_ZURICH -> MARCO_PORSCHE_SPEED
                     else -> BOSS_CHARGE_SPEED
                 }
                 val enragedCharge = when (level.arenaTheme) {
                     ArenaTheme.HANOI -> CHAN_ENRAGED_CHARGE_SPEED
                     ArenaTheme.PARIS -> LOUISE_ENRAGED_EVADE_SPEED
                     ArenaTheme.GYM_DEV -> ANDREA_ENRAGED_GRAPPLE_SPEED
+                    ArenaTheme.GOOGLE_ZURICH -> MARCO_ENRAGED_PORSCHE_SPEED
                     else -> BOSS_ENRAGED_CHARGE_SPEED
                 }
                 val chargeSpeed = if (boss.isEnraged) enragedCharge else baseCharge
@@ -513,6 +532,7 @@ class BossBattleEngine(
                 if (player.isBlocking) {
                     player.shieldFlashTimer = SHIELD_FLASH_DURATION
                     player.invulnerableTimer = 0.25f
+                    emitSound(GameSoundEvent.SHIELD_BLOCK)
                     if (boss.action == BossAction.CHARGING) {
                         boss.action = BossAction.PATROL
                         boss.attackCooldown = level.bossAttackInterval
@@ -558,6 +578,7 @@ class BossBattleEngine(
                     if (player.isBlocking) {
                         iterator.remove()
                         player.shieldFlashTimer = SHIELD_FLASH_DURATION
+                        emitSound(GameSoundEvent.SHIELD_BLOCK)
                         spawnHitParticles(
                             projectile.x,
                             projectile.y,
@@ -586,9 +607,12 @@ class BossBattleEngine(
             state.status = GameStatus.VICTORY
             state.endStateCooldown = END_STATE_COOLDOWN
             state.projectiles.clear()
+            emitSound(GameSoundEvent.VICTORY)
             spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 24)
             return
         }
+
+        emitSound(GameSoundEvent.BOSS_HIT)
 
         // Ivanone vanishes easily after taking 2 hits!
         if (level.arenaTheme == ArenaTheme.STUDIO) {
@@ -609,6 +633,9 @@ class BossBattleEngine(
             state.status = GameStatus.DEFEAT
             state.endStateCooldown = END_STATE_COOLDOWN
             state.projectiles.clear()
+            emitSound(GameSoundEvent.DEFEAT)
+        } else {
+            emitSound(GameSoundEvent.PLAYER_HIT)
         }
     }
 
@@ -963,6 +990,51 @@ class BossBattleEngine(
         )
     }
 
+    private fun spawnMarcoPorscheAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val line = MARCO_DATING_LINES[complaintIndex % MARCO_DATING_LINES.size]
+        complaintIndex += 1
+
+        emitSound(GameSoundEvent.CAMERA_SHUTTER)
+        spawnHitParticles(boss.x + boss.facingDir * 30f, boss.y - 26f, COLOR_SHIELD_BLOCK_SPARK, 12)
+
+        // Camera flash shot from the white Porsche window
+        val flashAngles = if (boss.isEnraged) listOf(baseAngle - 0.14, baseAngle + 0.14) else listOf(baseAngle)
+        for (angle in flashAngles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.5f),
+                    y = boss.y - 22f,
+                    vx = (cos(angle) * speed * 1.1f).toFloat(),
+                    vy = (sin(angle) * speed * 1.1f).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.CAMERA_FLASH
+                )
+            )
+        }
+
+        // Dating / "sono pieno di milioni" flex bubble
+        val flexAngle = baseAngle - 0.18
+        state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y - 44f,
+                vx = (cos(flexAngle) * speed * 0.88f).toFloat(),
+                vy = (sin(flexAngle) * speed * 0.88f).toFloat(),
+                radius = 24f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.DATING_FLEX,
+                label = line
+            )
+        )
+    }
+
     private fun spawnGroundShockwaves() {
         val boss = state.boss
         val speed = if (boss.isEnraged) {
@@ -1055,6 +1127,7 @@ class BossBattleEngine(
             ArenaTheme.PARIS -> 62f
             ArenaTheme.UBS_ALPS -> 64f
             ArenaTheme.GYM_DEV -> 58f
+            ArenaTheme.GOOGLE_ZURICH -> 82f
             ArenaTheme.IRON_ARENA -> 84f
             ArenaTheme.SPACE -> 88f
         }
@@ -1119,6 +1192,8 @@ class BossBattleEngine(
         private const val LOUISE_ENRAGED_EVADE_SPEED = 1020f
         private const val ANDREA_GRAPPLE_SPEED = 840f
         private const val ANDREA_ENRAGED_GRAPPLE_SPEED = 980f
+        private const val MARCO_PORSCHE_SPEED = 900f
+        private const val MARCO_ENRAGED_PORSCHE_SPEED = 1080f
         private const val BOSS_HIT_FLASH_DURATION = 0.08f
         private const val BOSS_HP_TRAIL_SPEED = 32f
         private const val SPREAD_ANGLE_RAD = 0.28
@@ -1171,6 +1246,15 @@ class BossBattleEngine(
             "NULL POINTER EXCEPTION!",
             "DEPLOY ROTTO IN PROD!",
             "NON COMPILA MA FIDATI!"
+        )
+
+        val MARCO_DATING_LINES = listOf(
+            "SONO PIENO DI MILIONI!",
+            "VUOI UN GIRO IN PORSCHE?",
+            "LAVORO A GOOGLE!",
+            "SONO PIENO DI MILIONI!!",
+            "MATCH SU HINGE?",
+            "CENA STELLATA? PAGO IO!"
         )
 
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()

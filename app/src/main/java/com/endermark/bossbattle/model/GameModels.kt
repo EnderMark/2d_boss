@@ -26,7 +26,20 @@ enum class ProjectileKind {
     WEIRD_TOOTH,
     HEART,
     SCREAM_WAVE,
-    RICE_CHICKEN
+    RICE_CHICKEN,
+    DATING_FLEX
+}
+
+enum class GameSoundEvent {
+    JUMP,
+    DOUBLE_JUMP,
+    ATTACK,
+    BOSS_HIT,
+    PLAYER_HIT,
+    SHIELD_BLOCK,
+    CAMERA_SHUTTER,
+    VICTORY,
+    DEFEAT
 }
 
 data class Player(

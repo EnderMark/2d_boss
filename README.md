@@ -1,6 +1,6 @@
 # 2D Boss Battle (Android)
 
-Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle.
+Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **musica di sottofondo chiptune** ed **effetti sonori** sintetizzati (`SoundManager`).
 
 ## Livelli disponibili
 
@@ -14,6 +14,7 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle.
 - **Livello 7 — `LOUISE`**: Ragazza francese dagli occhi azzurri a Parigi: ti seduce con cuori e frasi francesi, ma ti evita appena ti avvicini.
 - **Livello 8 — `DAISY`**: Ragazza calabrese di **UBS**, urla e si lamenta perché non la inviti mai alle hike.
 - **Livello 9 — `ANDREA DATTERO`**: Magrissimo con felpa **MOSCHINO**, tenta il grappling ravvicinato, lancia ciotole da **200g di riso e pollo** e si vanta di essere un 10x software engineer (tra crash e bug).
+- **Livello 10 — `MARCO DI GOOGLE`**: Sfreccia in **Porsche bianca** davanti al Google Campus, cerca di fare dating ripetendo `"SONO PIENO DI MILIONI!"` e scatta foto con flash fotografici dal finestrino.
 
 ## Build e Test
 

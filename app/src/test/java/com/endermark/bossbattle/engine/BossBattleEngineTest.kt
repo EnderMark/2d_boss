@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllNineLevels() {
-        assertEquals(9, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTenLevels() {
+        assertEquals(10, LevelCatalog.levels.size)
 
         assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
         assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
@@ -31,6 +31,7 @@ class BossBattleEngineTest {
         assertEquals("LOUISE", LevelCatalog.findById(7).bossName)
         assertEquals("DAISY", LevelCatalog.findById(8).bossName)
         assertEquals("ANDREA DATTERO", LevelCatalog.findById(9).bossName)
+        assertEquals("MARCO DI GOOGLE", LevelCatalog.findById(10).bossName)
 
         assertTrue(LevelCatalog.findById(3).hasShield)
         assertFalse(LevelCatalog.findById(4).hasShield)
@@ -38,6 +39,7 @@ class BossBattleEngineTest {
         assertEquals(ArenaTheme.PARIS, LevelCatalog.findById(7).arenaTheme)
         assertEquals(ArenaTheme.UBS_ALPS, LevelCatalog.findById(8).arenaTheme)
         assertEquals(ArenaTheme.GYM_DEV, LevelCatalog.findById(9).arenaTheme)
+        assertEquals(ArenaTheme.GOOGLE_ZURICH, LevelCatalog.findById(10).arenaTheme)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -328,5 +330,29 @@ class BossBattleEngineTest {
 
         assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.RICE_CHICKEN })
         assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
+    }
+
+    @Test
+    fun levelTenMarcoDiGoogleCameraDatingAndSoundEvents() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_10)
+        engine.startGame()
+
+        assertTrue(engine.triggerJump())
+        assertTrue(engine.triggerMeleeAttack())
+
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.CAMERA_FLASH })
+        val flex = engine.state.projectiles.firstOrNull { it.kind == ProjectileKind.DATING_FLEX }
+        assertNotNull(flex)
+        assertEquals("SONO PIENO DI MILIONI!", flex?.label)
+
+        val sounds = engine.drainSoundEvents()
+        assertTrue(sounds.contains(com.endermark.bossbattle.model.GameSoundEvent.JUMP))
+        assertTrue(sounds.contains(com.endermark.bossbattle.model.GameSoundEvent.ATTACK))
+        assertTrue(sounds.contains(com.endermark.bossbattle.model.GameSoundEvent.CAMERA_SHUTTER))
+        assertTrue(engine.drainSoundEvents().isEmpty())
     }
 }

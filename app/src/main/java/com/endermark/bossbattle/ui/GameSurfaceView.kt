@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.endermark.bossbattle.audio.SoundManager
 import com.endermark.bossbattle.engine.BossBattleEngine
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.BossLevel
@@ -19,6 +20,7 @@ class GameSurfaceView(
 
     private val engine = BossBattleEngine(level = level)
     private val renderer = GameRenderer()
+    private val soundManager = SoundManager()
     private val stateLock = Any()
 
     @Volatile
@@ -31,6 +33,7 @@ class GameSurfaceView(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        soundManager.startMusic()
         startLoop()
     }
 
@@ -39,16 +42,19 @@ class GameSurfaceView(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        soundManager.stopMusic()
         stopLoop()
     }
 
     fun resumeGame() {
+        soundManager.startMusic()
         if (holder.surface.isValid) {
             startLoop()
         }
     }
 
     fun pauseGame() {
+        soundManager.stopMusic()
         stopLoop()
     }
 
@@ -85,6 +91,7 @@ class GameSurfaceView(
             }
         }
         if (exitRequested) {
+            soundManager.stopMusic()
             post { onExitToMenu() }
         }
         return true
@@ -180,12 +187,17 @@ class GameSurfaceView(
             val dt = (nowNs - lastTimeNs) / 1_000_000_000f
             lastTimeNs = nowNs
 
+            val soundEvents: List<com.endermark.bossbattle.model.GameSoundEvent>
             val canvas = holder.lockCanvas()
             if (canvas != null) {
                 try {
                     synchronized(stateLock) {
                         engine.update(dt)
+                        soundEvents = engine.drainSoundEvents()
                         renderer.render(canvas, engine.state)
+                    }
+                    for (event in soundEvents) {
+                        soundManager.play(event)
                     }
                 } finally {
                     holder.unlockCanvasAndPost(canvas)
