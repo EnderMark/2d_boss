@@ -13,8 +13,10 @@ import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossAction
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
+import com.endermark.bossbattle.model.PickupKind
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.ProjectileKind
+import com.endermark.bossbattle.model.WeaponType
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
@@ -494,6 +496,7 @@ class GameRenderer {
         val isMelee = state.level.mode == BattleMode.MELEE_PLATFORMER
         when (state.level.arenaTheme) {
             ArenaTheme.HANOI -> drawHanoiBackground(canvas, state)
+            ArenaTheme.HANOI_SPA -> drawHanoiSpaBackground(canvas, state)
             ArenaTheme.ZURICH -> drawZurichBackground(canvas, state)
             ArenaTheme.ZURICH_TAX -> drawZurichTaxBackground(canvas, state)
             ArenaTheme.STUDIO -> drawStudioBackground(canvas, state)
@@ -507,13 +510,15 @@ class GameRenderer {
             drawGroundArena(canvas, state)
         }
 
-        drawBossHealthBar(canvas, state.boss, state.worldWidth)
+        drawBossHealthBar(canvas, state.boss, state.worldWidth, state.level.multiPhase)
+        drawPickups(canvas, state)
         drawProjectiles(canvas, state)
         drawParticles(canvas, state)
 
         if (state.boss.hp > 0 && !state.boss.isVanished) {
             when (state.level.arenaTheme) {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH_TAX -> drawAlessioTaxBoss(canvas, state.boss, state.elapsedTime)
@@ -528,11 +533,12 @@ class GameRenderer {
 
         if (isMelee) {
             drawMeleeCharacter(canvas, state.player, state.elapsedTime, state.level.hasShield)
-            drawPlayerHud(canvas, state.player, baseY = 178f)
+            val hudY = if (state.boss.maxArmor > 0) 204f else 178f
+            drawPlayerHud(canvas, state.player, baseY = hudY, showWeaponStatus = state.level.enablePickups)
             drawMeleeControls(canvas, state.level.hasShield)
         } else {
             drawPlayerShip(canvas, state.player, state.elapsedTime)
-            drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f)
+            drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f, showWeaponStatus = false)
         }
 
         if (state.status != GameStatus.PLAYING) {
@@ -719,7 +725,12 @@ class GameRenderer {
         canvas.drawLine(0f, state.groundY, state.worldWidth, state.groundY, line)
     }
 
-    private fun drawBossHealthBar(canvas: Canvas, boss: Boss, worldWidth: Float) {
+    private fun drawBossHealthBar(
+        canvas: Canvas,
+        boss: Boss,
+        worldWidth: Float,
+        multiPhase: Boolean
+    ) {
         val marginX = 52f
         val topY = 92f
         val barHeight = 36f
@@ -727,9 +738,16 @@ class GameRenderer {
         val cornerRadius = 14f
 
         canvas.drawText(boss.name, marginX, topY - 18f, bossNamePaint)
-        if (boss.isEnraged && boss.hp > 0) {
-            val nameWidth = bossNamePaint.measureText(boss.name)
-            canvas.drawText("FASE 2", marginX + nameWidth + 20f, topY - 18f, phaseBadgePaint)
+        if (boss.hp > 0) {
+            val phaseLabel = when {
+                multiPhase -> "FASE ${boss.phase}"
+                boss.isEnraged -> "FASE 2"
+                else -> null
+            }
+            if (phaseLabel != null) {
+                val nameWidth = bossNamePaint.measureText(boss.name)
+                canvas.drawText(phaseLabel, marginX + nameWidth + 20f, topY - 18f, phaseBadgePaint)
+            }
         }
         canvas.drawText(
             "${boss.hp} / ${boss.maxHp} HP",
@@ -767,6 +785,43 @@ class GameRenderer {
 
         tempRect.set(marginX, topY, marginX + barWidth, topY + barHeight)
         canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBorderPaint)
+
+        // Armor bar directly below HP bar (Level 11 Caramel)
+        if (boss.maxArmor > 0) {
+            val armorTopY = topY + barHeight + 10f
+            val armorHeight = 18f
+            tempRect.set(marginX, armorTopY, marginX + barWidth, armorTopY + armorHeight)
+            canvas.drawRoundRect(tempRect, 9f, 9f, barBgPaint)
+
+            val armorWidth = barWidth * boss.armorRatio
+            if (armorWidth > 0f) {
+                barFillPaint.shader = LinearGradient(
+                    marginX,
+                    armorTopY,
+                    marginX + barWidth,
+                    armorTopY,
+                    Color.parseColor("#26C6DA"),
+                    Color.parseColor("#FFD54F"),
+                    Shader.TileMode.CLAMP
+                )
+                tempRect.set(marginX, armorTopY, marginX + armorWidth, armorTopY + armorHeight)
+                canvas.drawRoundRect(tempRect, 9f, 9f, barFillPaint)
+                barFillPaint.shader = null
+            }
+
+            tempRect.set(marginX, armorTopY, marginX + barWidth, armorTopY + armorHeight)
+            canvas.drawRoundRect(tempRect, 9f, 9f, barBorderPaint)
+
+            val armorStatus = if (boss.isStunned) {
+                "ARMATURA ROTTA! ATTACCA!"
+            } else {
+                "ARMATURA ${boss.armor}/${boss.maxArmor}"
+            }
+            canvas.drawText(armorStatus, worldWidth - marginX, armorTopY + 42f, phaseBadgePaint.apply {
+                textAlign = Paint.Align.RIGHT
+            })
+            phaseBadgePaint.textAlign = Paint.Align.LEFT
+        }
     }
 
     private fun drawShooterBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
@@ -1040,11 +1095,41 @@ class GameRenderer {
 
         canvas.drawCircle(x, y - r * 0.68f, 17f, playerAccentPaint)
 
+        if (player.hasDamageBoost) {
+            canvas.drawCircle(x, y, r * 1.48f, bossTelegraphPaint)
+        } else if (player.hasSpeedBoost) {
+            canvas.drawCircle(x, y, r * 1.38f, slashArcPaint.apply { strokeWidth = 6f })
+            slashArcPaint.strokeWidth = 16f
+        }
+
         val armStartX = x + dir * 12f
         val armStartY = y - r * 0.1f
-        val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
-        val swordTipY = if (player.isAttacking) y - 6f else y - 24f
-        canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
+        when (player.weapon) {
+            WeaponType.HAMMER -> {
+                val tipX = if (player.isAttacking) x + dir * 90f else x + dir * 56f
+                val tipY = if (player.isAttacking) y + 4f else y - 28f
+                canvas.drawLine(armStartX, armStartY, tipX, tipY, swordPaint)
+                tempRect.set(tipX - 20f, tipY - 14f, tipX + 20f, tipY + 14f)
+                canvas.drawRoundRect(tempRect, 6f, 6f, hanoiLanternGoldPaint)
+                canvas.drawRoundRect(tempRect, 6f, 6f, controlAttackBorderPaint)
+            }
+            WeaponType.KATANA -> {
+                val tipX = if (player.isAttacking) x + dir * 98f else x + dir * 64f
+                val tipY = if (player.isAttacking) y - 8f else y - 34f
+                canvas.drawLine(armStartX, armStartY, tipX, tipY, speechBubbleBorderPaint)
+            }
+            WeaponType.SPEAR -> {
+                val tipX = if (player.isAttacking) x + dir * 112f else x + dir * 74f
+                val tipY = y - 10f
+                canvas.drawLine(armStartX, armStartY, tipX, tipY, chanGoldTrimPaint)
+                canvas.drawCircle(tipX, tipY, 8f, hanoiLanternGoldPaint)
+            }
+            WeaponType.SWORD -> {
+                val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
+                val swordTipY = if (player.isAttacking) y - 6f else y - 24f
+                canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
+            }
+        }
 
         if (hasShield) {
             val shieldX = if (player.isBlocking) x + dir * 34f else x - dir * 20f
@@ -1070,8 +1155,9 @@ class GameRenderer {
         }
 
         if (player.isAttacking) {
-            val arcCenterX = x + dir * 44f
-            tempRect.set(arcCenterX - 58f, y - 58f, arcCenterX + 58f, y + 58f)
+            val arcRadius = if (player.weapon == WeaponType.HAMMER) 76f else 58f
+            val arcCenterX = x + dir * 48f
+            tempRect.set(arcCenterX - arcRadius, y - arcRadius, arcCenterX + arcRadius, y + arcRadius)
             val startAngle = if (player.facingDir >= 0) -65f else 115f
             canvas.drawArc(tempRect, startAngle, 130f, false, slashArcPaint)
         }
@@ -1278,6 +1364,15 @@ class GameRenderer {
                     canvas.drawRoundRect(tempRect, 18f, 18f, hanoiLanternGoldPaint)
                     canvas.drawRoundRect(tempRect, 18f, 18f, speechBubbleBorderPaint)
                     canvas.drawText(text, projectile.x, projectile.y + 8f, speechBubbleTextPaint)
+                }
+                ProjectileKind.HOT_STONE -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    tempRect.set(x - r * 1.15f, y - r * 0.85f, x + r * 1.15f, y + r * 0.85f)
+                    canvas.drawOval(tempRect, droneBodyPaint)
+                    canvas.drawOval(tempRect, shockwavePaint)
+                    canvas.drawCircle(x, y, r * 0.42f, shockwaveCorePaint)
                 }
                 ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
@@ -1631,6 +1726,124 @@ class GameRenderer {
         canvas.drawRoundRect(tempRect, 10f, 10f, chanHairPaint)
     }
 
+    private fun drawPickups(canvas: Canvas, state: GameState) {
+        for (pickup in state.pickups) {
+            val bobY = pickup.y + sin(state.elapsedTime * 5f + pickup.x * 0.02f) * 8f
+            val bgColor = when (pickup.kind) {
+                PickupKind.WEAPON_HAMMER -> Color.parseColor("#FF8F00")
+                PickupKind.WEAPON_KATANA -> Color.parseColor("#D81B60")
+                PickupKind.WEAPON_SPEAR -> Color.parseColor("#00ACC1")
+                PickupKind.HEAL -> Color.parseColor("#43A047")
+                PickupKind.SPEED_BOOST -> Color.parseColor("#039BE5")
+                PickupKind.POWER_SURGE -> Color.parseColor("#F4511E")
+            }
+            bossCorePaint.color = bgColor
+            canvas.drawCircle(pickup.x, bobY, pickup.radius, bossCorePaint)
+            canvas.drawCircle(pickup.x, bobY, pickup.radius, controlShieldBorderPaint)
+            canvas.drawText(pickup.kind.label, pickup.x, bobY - pickup.radius - 10f, controlLabelPaint.apply {
+                textSize = 22f
+            })
+            controlLabelPaint.textSize = 32f
+        }
+    }
+
+    private fun drawHanoiSpaBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.groundY,
+            intArrayOf(
+                Color.parseColor("#211219"),
+                Color.parseColor("#4E2428"),
+                Color.parseColor("#8A4733")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Bamboo silhouettes on left and right
+        val bambooPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#2E1D21")
+            strokeWidth = 18f
+        }
+        for (bx in listOf(90f, 155f, 845f, 910f)) {
+            canvas.drawLine(bx, 220f, bx, state.groundY, bambooPaint)
+        }
+
+        // Warm spa lotus emblem & candles
+        val cx = state.worldWidth * 0.5f
+        canvas.drawCircle(cx, 540f, 120f, studioBeamPaint)
+        canvas.drawText("HANOI SPA", cx, 555f, controlLabelPaint)
+
+        for (candleX in listOf(260f, 500f, 740f)) {
+            val base = state.groundY
+            canvas.drawRect(candleX - 14f, base - 48f, candleX + 14f, base, swissCrossWhitePaint)
+            val flicker = sin(state.elapsedTime * 12f + candleX) * 4f
+            canvas.drawCircle(candleX + flicker * 0.3f, base - 58f, 10f, hanoiLanternGoldPaint)
+        }
+    }
+
+    private fun drawCaramelBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.25f + 0.12f * sin(elapsedTime * 20f)), bossTelegraphPaint)
+        }
+
+        // Golden-cyan hot-stone Armor Shield around Caramel when armor > 0!
+        if (boss.hasArmor) {
+            val armorRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(180, 38, 198, 218)
+                style = Paint.Style.STROKE
+                strokeWidth = 12f
+            }
+            canvas.drawCircle(x, y, r * 1.32f, armorRingPaint)
+            canvas.drawCircle(x, y, r * 1.18f, shieldAuraPaint)
+        }
+
+        // Dark bun hair + lotus pin
+        canvas.drawCircle(x, y - r * 0.96f, r * 0.22f, chanHairPaint)
+        canvas.drawCircle(x + 14f, y - r * 1.02f, 10f, hanoiLanternRedPaint)
+
+        // Caramel-gold silk spa tunic
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            boss.phase == 3 -> Color.parseColor("#D84315")
+            boss.phase == 2 -> Color.parseColor("#E65100")
+            else -> Color.parseColor("#C67C3B")
+        }
+        tempPath.reset()
+        tempPath.moveTo(x - r * 0.38f, y - r * 0.32f)
+        tempPath.lineTo(x + r * 0.38f, y - r * 0.32f)
+        tempPath.lineTo(x + r * 0.58f, y + r * 0.98f)
+        tempPath.lineTo(x - r * 0.58f, y + r * 0.98f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossArmorPaint)
+        canvas.drawLine(x, y - r * 0.30f, x, y + r * 0.94f, chanGoldTrimPaint)
+
+        // Face
+        val headY = y - r * 0.62f
+        canvas.drawCircle(x, headY, r * 0.32f, if (isHit) bossArmorPaint else skinPaint)
+
+        // Stunned dizzy stars above head when Armor Break triggers!
+        if (boss.isStunned) {
+            for (i in 0..2) {
+                val angle = elapsedTime * 6f + i * 2.1f
+                val sx = x + (kotlin.math.cos(angle.toDouble()) * 42f).toFloat()
+                val sy = headY - 42f + (sin(angle.toDouble()) * 10f).toFloat()
+                canvas.drawCircle(sx, sy, 8f, hanoiLanternGoldPaint)
+            }
+        }
+    }
+
     private fun drawParticles(canvas: Canvas, state: GameState) {
         for (particle in state.particles) {
             val alpha = ((particle.life / particle.maxLife).coerceIn(0f, 1f) * 255).toInt()
@@ -1640,7 +1853,12 @@ class GameRenderer {
         }
     }
 
-    private fun drawPlayerHud(canvas: Canvas, player: Player, baseY: Float) {
+    private fun drawPlayerHud(
+        canvas: Canvas,
+        player: Player,
+        baseY: Float,
+        showWeaponStatus: Boolean
+    ) {
         val startX = 52f
         canvas.drawText("VITA", startX, baseY + 10f, playerHpLabelPaint)
 
@@ -1654,6 +1872,19 @@ class GameRenderer {
             tempRect.set(left, baseY - pipHeight / 2f, left + pipWidth, baseY + pipHeight / 2f)
             val paint = if (i < player.hp) heartActivePaint else heartEmptyPaint
             canvas.drawRoundRect(tempRect, 6f, 6f, paint)
+        }
+
+        if (showWeaponStatus) {
+            val weaponInfo = if (player.weaponTimer > 0f) {
+                "ARMA: ${player.weapon.displayName} (${player.weaponTimer.toInt() + 1}s)"
+            } else {
+                "ARMA: ${player.weapon.displayName}"
+            }
+            val boostInfo = buildString {
+                if (player.hasDamageBoost) append(" • FURIA x2")
+                if (player.hasSpeedBoost) append(" • VELOCITÀ")
+            }
+            canvas.drawText(weaponInfo + boostInfo, startX, baseY + 46f, phaseBadgePaint)
         }
     }
 

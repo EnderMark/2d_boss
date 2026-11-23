@@ -1,5 +1,6 @@
 package com.endermark.bossbattle.engine
 
+import com.endermark.bossbattle.model.ArenaPickup
 import com.endermark.bossbattle.model.ArenaTheme
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
@@ -10,15 +11,18 @@ import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.HitParticle
 import com.endermark.bossbattle.model.LevelCatalog
+import com.endermark.bossbattle.model.PickupKind
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
 import com.endermark.bossbattle.model.ProjectileKind
+import com.endermark.bossbattle.model.WeaponType
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sign
 import kotlin.math.sin
 
@@ -33,6 +37,8 @@ class BossBattleEngine(
     private var moveInput: Int = 0
     private var nextMeleeBossAttackIsCharge: Boolean = false
     private var complaintIndex: Int = 0
+    private var pickupSpawnTimer: Float = PICKUP_FIRST_SPAWN_DELAY
+    private var pickupSequenceIndex: Int = 0
     private val pendingSoundEvents: MutableList<GameSoundEvent> = mutableListOf()
 
     fun drainSoundEvents(): List<GameSoundEvent> {
@@ -84,7 +90,8 @@ class BossBattleEngine(
             return false
         }
         val isFirstJump = player.jumpsRemaining == Player.MAX_JUMPS
-        player.vy = if (isFirstJump) JUMP_VELOCITY else DOUBLE_JUMP_VELOCITY
+        val boost = if (player.hasSpeedBoost) 1.12f else 1f
+        player.vy = (if (isFirstJump) JUMP_VELOCITY else DOUBLE_JUMP_VELOCITY) * boost
         player.onGround = false
         player.jumpsRemaining -= 1
         emitSound(if (isFirstJump) GameSoundEvent.JUMP else GameSoundEvent.DOUBLE_JUMP)
@@ -106,9 +113,31 @@ class BossBattleEngine(
             return false
         }
         player.meleeTimer = MELEE_DURATION
-        player.meleeCooldown = MELEE_COOLDOWN
+        player.meleeCooldown = when (player.weapon) {
+            WeaponType.KATANA -> 0.18f
+            WeaponType.SPEAR -> 0.28f
+            WeaponType.HAMMER -> 0.42f
+            WeaponType.SWORD -> MELEE_COOLDOWN
+        }
         player.meleeHitApplied = false
         emitSound(GameSoundEvent.ATTACK)
+
+        // Spear also fires a horizontal piercing energy wave!
+        if (player.weapon == WeaponType.SPEAR) {
+            val dmg = if (player.hasDamageBoost) 24 else 12
+            state.projectiles.add(
+                Projectile(
+                    x = player.x + player.facingDir * 44f,
+                    y = player.y - 6f,
+                    vx = player.facingDir * 860f,
+                    vy = 0f,
+                    radius = 16f,
+                    fromPlayer = true,
+                    damage = dmg,
+                    kind = ProjectileKind.PLAYER_BOLT
+                )
+            )
+        }
         return true
     }
 
@@ -118,10 +147,13 @@ class BossBattleEngine(
         state.endStateCooldown = 0f
         state.projectiles.clear()
         state.particles.clear()
+        state.pickups.clear()
         pendingSoundEvents.clear()
         moveInput = 0
         nextMeleeBossAttackIsCharge = false
         complaintIndex = 0
+        pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY
+        pickupSequenceIndex = 0
 
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
             state.player.apply {
@@ -140,12 +172,20 @@ class BossBattleEngine(
                 meleeHitApplied = false
                 isBlocking = false
                 shieldFlashTimer = 0f
+                weapon = WeaponType.SWORD
+                weaponTimer = 0f
+                speedBoostTimer = 0f
+                damageBoostTimer = 0f
             }
             state.boss.apply {
                 x = state.worldWidth * 0.76f
                 y = state.groundY - radius
                 hp = maxHp
                 displayedHp = maxHp.toFloat()
+                armor = level.bossMaxArmor
+                maxArmor = level.bossMaxArmor
+                phase = 1
+                stunTimer = 0f
                 velocityX = -level.bossBaseSpeed
                 attackCooldown = 1.2f
                 hitFlashTimer = 0f
@@ -172,6 +212,10 @@ class BossBattleEngine(
                 meleeHitApplied = false
                 isBlocking = false
                 shieldFlashTimer = 0f
+                weapon = WeaponType.SWORD
+                weaponTimer = 0f
+                speedBoostTimer = 0f
+                damageBoostTimer = 0f
             }
             state.boss.apply {
                 x = state.worldWidth / 2f
@@ -211,6 +255,9 @@ class BossBattleEngine(
             updateShooterPlayer(dt)
             updateShooterBoss(dt)
         }
+        if (level.enablePickups) {
+            updatePickups(dt)
+        }
         updateProjectiles(dt)
         resolveCollisions()
     }
@@ -241,8 +288,9 @@ class BossBattleEngine(
 
     private fun updateMeleePlayer(dt: Float) {
         val player = state.player
-        val speedFactor = if (player.isBlocking) SHIELD_MOVE_MULTIPLIER else 1f
-        player.vx = moveInput * PLATFORMER_MOVE_SPEED * speedFactor
+        val shieldFactor = if (player.isBlocking) SHIELD_MOVE_MULTIPLIER else 1f
+        val speedFactor = if (player.hasSpeedBoost) SPEED_BOOST_MULTIPLIER else 1f
+        player.vx = moveInput * PLATFORMER_MOVE_SPEED * shieldFactor * speedFactor
         if (moveInput != 0) {
             player.facingDir = moveInput
         }
@@ -275,6 +323,18 @@ class BossBattleEngine(
         }
         if (player.shieldFlashTimer > 0f) {
             player.shieldFlashTimer = max(0f, player.shieldFlashTimer - dt)
+        }
+        if (player.weaponTimer > 0f) {
+            player.weaponTimer = max(0f, player.weaponTimer - dt)
+            if (player.weaponTimer <= 0f) {
+                player.weapon = WeaponType.SWORD
+            }
+        }
+        if (player.speedBoostTimer > 0f) {
+            player.speedBoostTimer = max(0f, player.speedBoostTimer - dt)
+        }
+        if (player.damageBoostTimer > 0f) {
+            player.damageBoostTimer = max(0f, player.damageBoostTimer - dt)
         }
     }
 
@@ -318,6 +378,12 @@ class BossBattleEngine(
         val minX = boss.radius + ARENA_PADDING
         val maxX = state.worldWidth - boss.radius - ARENA_PADDING
         boss.y = state.groundY - boss.radius
+
+        // Armor Break stun window: boss cannot move or attack while stunned!
+        if (boss.stunTimer > 0f) {
+            boss.stunTimer = max(0f, boss.stunTimer - dt)
+            return
+        }
 
         // Ivanone vanish / reappear handling
         if (boss.vanishTimer > 0f) {
@@ -414,6 +480,10 @@ class BossBattleEngine(
                             spawnAndreaRiceAndDevAttack()
                         }
                         ArenaTheme.GOOGLE_ZURICH -> spawnMarcoPorscheAttack()
+                        ArenaTheme.HANOI_SPA -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnCaramelSpaAttack()
+                        }
                         else -> {
                             emitSound(GameSoundEvent.BOSS_ATTACK)
                             spawnGroundShockwaves()
@@ -535,19 +605,38 @@ class BossBattleEngine(
         if (level.mode == BattleMode.MELEE_PLATFORMER && !boss.isVanished) {
             // Player melee swing vs Boss
             if (player.isAttacking && !player.meleeHitApplied) {
-                val strikeX = player.x + player.facingDir * MELEE_REACH_OFFSET
+                val reach = when (player.weapon) {
+                    WeaponType.SPEAR -> 96f
+                    WeaponType.HAMMER -> 78f
+                    WeaponType.KATANA -> 78f
+                    WeaponType.SWORD -> MELEE_REACH_OFFSET
+                }
+                val hitRadius = when (player.weapon) {
+                    WeaponType.HAMMER -> 104f
+                    WeaponType.KATANA -> 88f
+                    else -> MELEE_HIT_RADIUS
+                }
+                val strikeX = player.x + player.facingDir * reach
                 val strikeY = player.y
-                if (circlesCollide(strikeX, strikeY, MELEE_HIT_RADIUS, boss.x, boss.y, boss.radius)) {
+                if (circlesCollide(strikeX, strikeY, hitRadius, boss.x, boss.y, boss.radius)) {
                     player.meleeHitApplied = true
-                    applyDamageToBoss(MELEE_DAMAGE, strikeX, strikeY)
+                    val baseDmg = when (player.weapon) {
+                        WeaponType.KATANA -> 18
+                        WeaponType.HAMMER -> 14
+                        WeaponType.SPEAR -> 14
+                        WeaponType.SWORD -> MELEE_DAMAGE
+                    }
+                    val dmg = if (player.hasDamageBoost) baseDmg * 2 else baseDmg
+                    val armorBonus = if (player.weapon == WeaponType.HAMMER) 2 else 1
+                    applyDamageToBoss(dmg, strikeX, strikeY, armorMultiplier = armorBonus)
                     if (state.status != GameStatus.PLAYING) {
                         return
                     }
                 }
             }
 
-            // Boss body contact vs Player
-            if (!boss.isVanished && !player.isInvulnerable && circlesCollide(
+            // Boss body contact vs Player (skip if boss is stunned!)
+            if (!boss.isVanished && !boss.isStunned && !player.isInvulnerable && circlesCollide(
                     player.x, player.y, player.radius * 0.9f,
                     boss.x, boss.y, boss.radius * 0.85f
                 )
@@ -625,22 +714,64 @@ class BossBattleEngine(
         }
     }
 
-    private fun applyDamageToBoss(damage: Int, hitX: Float, hitY: Float) {
+    private fun applyDamageToBoss(
+        damage: Int,
+        hitX: Float,
+        hitY: Float,
+        armorMultiplier: Int = 1
+    ) {
         val boss = state.boss
-        boss.hp = max(0, boss.hp - damage)
         boss.hitFlashTimer = BOSS_HIT_FLASH_DURATION
+
+        // Armor absorbs incoming damage first; breaking it stuns the boss!
+        if (boss.armor > 0) {
+            val armorDamage = damage * armorMultiplier
+            boss.armor = max(0, boss.armor - armorDamage)
+            spawnHitParticles(hitX, hitY, color = COLOR_ARMOR_SPARK, count = 10)
+            if (boss.armor == 0) {
+                boss.stunTimer = ARMOR_BREAK_STUN_DURATION
+                boss.action = BossAction.PATROL
+                emitSound(GameSoundEvent.ARMOR_BREAK)
+                spawnHitParticles(boss.x, boss.y, color = COLOR_SHIELD_BLOCK_SPARK, count = 22)
+            } else {
+                emitSound(GameSoundEvent.SHIELD_BLOCK)
+            }
+            return
+        }
+
+        boss.hp = max(0, boss.hp - damage)
         spawnHitParticles(hitX, hitY, color = COLOR_BOSS_HIT_SPARK, count = 8)
 
         if (boss.hp <= 0) {
             state.status = GameStatus.VICTORY
             state.endStateCooldown = END_STATE_COOLDOWN
             state.projectiles.clear()
+            state.pickups.clear()
             emitSound(GameSoundEvent.VICTORY)
             spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 24)
             return
         }
 
         emitSound(GameSoundEvent.BOSS_HIT)
+
+        // Multi-phase transitions (Level 11 Caramel): reforge armor at Phase 2 (66%) and Phase 3 (33%)
+        if (level.multiPhase) {
+            if (boss.phase == 1 && boss.hpRatio <= 0.66f) {
+                boss.phase = 2
+                boss.armor = 50
+                boss.maxArmor = 50
+                boss.stunTimer = 0f
+                emitSound(GameSoundEvent.BOSS_CHARGE)
+                spawnHitParticles(boss.x, boss.y, color = COLOR_ARMOR_SPARK, count = 18)
+            } else if (boss.phase == 2 && boss.hpRatio <= 0.33f) {
+                boss.phase = 3
+                boss.armor = 40
+                boss.maxArmor = 40
+                boss.stunTimer = 0f
+                emitSound(GameSoundEvent.BOSS_CHARGE)
+                spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 20)
+            }
+        }
 
         // Ivanone vanishes easily after taking 2 hits!
         if (level.arenaTheme == ArenaTheme.STUDIO) {
@@ -1065,6 +1196,107 @@ class BossBattleEngine(
         )
     }
 
+    private fun updatePickups(dt: Float) {
+        pickupSpawnTimer -= dt
+        if (pickupSpawnTimer <= 0f && state.pickups.size < MAX_ACTIVE_PICKUPS) {
+            spawnNextPickup()
+            pickupSpawnTimer = PICKUP_SPAWN_INTERVAL
+        }
+
+        val player = state.player
+        val iterator = state.pickups.iterator()
+        while (iterator.hasNext()) {
+            val pickup = iterator.next()
+            pickup.life -= dt
+            if (pickup.life <= 0f) {
+                iterator.remove()
+                continue
+            }
+            if (circlesCollide(player.x, player.y, player.radius + 10f, pickup.x, pickup.y, pickup.radius)) {
+                applyPickup(pickup)
+                iterator.remove()
+            }
+        }
+    }
+
+    private fun spawnNextPickup() {
+        val sequence = listOf(
+            PickupKind.WEAPON_HAMMER,
+            PickupKind.POWER_SURGE,
+            PickupKind.WEAPON_KATANA,
+            PickupKind.HEAL,
+            PickupKind.WEAPON_SPEAR,
+            PickupKind.SPEED_BOOST
+        )
+        val kind = sequence[pickupSequenceIndex % sequence.size]
+        val xs = listOf(220f, 500f, 780f, 340f, 660f)
+        val ys = listOf(state.groundY - 52f, state.groundY - 190f, state.groundY - 52f)
+        val x = xs[pickupSequenceIndex % xs.size]
+        val y = ys[pickupSequenceIndex % ys.size]
+        pickupSequenceIndex += 1
+
+        state.pickups.add(ArenaPickup(x = x, y = y, kind = kind))
+    }
+
+    private fun applyPickup(pickup: ArenaPickup) {
+        val player = state.player
+        emitSound(GameSoundEvent.PICKUP)
+        spawnHitParticles(pickup.x, pickup.y, COLOR_PICKUP_SPARK, 12)
+        when (pickup.kind) {
+            PickupKind.WEAPON_HAMMER -> {
+                player.weapon = WeaponType.HAMMER
+                player.weaponTimer = WEAPON_DURATION
+            }
+            PickupKind.WEAPON_KATANA -> {
+                player.weapon = WeaponType.KATANA
+                player.weaponTimer = WEAPON_DURATION
+            }
+            PickupKind.WEAPON_SPEAR -> {
+                player.weapon = WeaponType.SPEAR
+                player.weaponTimer = WEAPON_DURATION
+            }
+            PickupKind.HEAL -> {
+                player.hp = min(player.maxHp, player.hp + 1)
+            }
+            PickupKind.SPEED_BOOST -> {
+                player.speedBoostTimer = POWERUP_DURATION
+            }
+            PickupKind.POWER_SURGE -> {
+                player.damageBoostTimer = POWERUP_DURATION
+            }
+        }
+    }
+
+    private fun spawnCaramelSpaAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.phase >= 2) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = when (boss.phase) {
+            1 -> listOf(baseAngle - 0.12, baseAngle + 0.12)
+            2 -> listOf(baseAngle - 0.22, baseAngle, baseAngle + 0.22)
+            else -> listOf(baseAngle - 0.26, baseAngle, baseAngle + 0.26)
+        }
+        spawnHitParticles(boss.x, boss.y - 20f, COLOR_VICTORY_SPARK, 10)
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + boss.facingDir * (boss.radius * 0.45f),
+                    y = boss.y - 16f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 22f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.HOT_STONE
+                )
+            )
+        }
+        if (boss.phase >= 3) {
+            spawnGroundShockwaves()
+        }
+    }
+
     private fun spawnGroundShockwaves() {
         val boss = state.boss
         val speed = if (boss.isEnraged) {
@@ -1151,6 +1383,7 @@ class BossBattleEngine(
         val playerRadius = 36f
         val bossRadius = when (level.arenaTheme) {
             ArenaTheme.HANOI -> 64f
+            ArenaTheme.HANOI_SPA -> 68f
             ArenaTheme.ZURICH -> 66f
             ArenaTheme.STUDIO -> 74f
             ArenaTheme.ZURICH_TAX -> 68f
@@ -1179,6 +1412,9 @@ class BossBattleEngine(
                 hp = level.bossMaxHp,
                 maxHp = level.bossMaxHp,
                 displayedHp = level.bossMaxHp.toFloat(),
+                armor = level.bossMaxArmor,
+                maxArmor = level.bossMaxArmor,
+                phase = 1,
                 velocityX = if (isMelee) -level.bossBaseSpeed else level.bossBaseSpeed
             ),
             groundY = DEFAULT_GROUND_Y
@@ -1203,6 +1439,7 @@ class BossBattleEngine(
 
         private const val PLATFORMER_MOVE_SPEED = 460f
         private const val SHIELD_MOVE_MULTIPLIER = 0.55f
+        private const val SPEED_BOOST_MULTIPLIER = 1.45f
         private const val SHIELD_FLASH_DURATION = 0.18f
         private const val GRAVITY = 2600f
         private const val JUMP_VELOCITY = -1020f
@@ -1212,6 +1449,13 @@ class BossBattleEngine(
         private const val MELEE_REACH_OFFSET = 64f
         private const val MELEE_HIT_RADIUS = 76f
         private const val MELEE_DAMAGE = 10
+
+        private const val MAX_ACTIVE_PICKUPS = 2
+        private const val PICKUP_FIRST_SPAWN_DELAY = 2.5f
+        private const val PICKUP_SPAWN_INTERVAL = 5.2f
+        private const val WEAPON_DURATION = 11.0f
+        private const val POWERUP_DURATION = 8.5f
+        private const val ARMOR_BREAK_STUN_DURATION = 1.8f
 
         private const val BOSS_ENRAGED_SPEED_MULTIPLIER = 1.45f
         private const val BOSS_CHARGE_SPEED = 740f
@@ -1295,5 +1539,7 @@ class BossBattleEngine(
         const val COLOR_SHIELD_BLOCK_SPARK = 0xFFFFE082.toInt()
         const val COLOR_VANISH_SMOKE = 0xFFCFD8DC.toInt()
         const val COLOR_LOUISE_PINK = 0xFFF48FB1.toInt()
+        const val COLOR_ARMOR_SPARK = 0xFF80DEEA.toInt()
+        const val COLOR_PICKUP_SPARK = 0xFF69F0AE.toInt()
     }
 }

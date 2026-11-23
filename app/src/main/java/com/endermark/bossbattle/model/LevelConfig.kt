@@ -15,7 +15,8 @@ enum class ArenaTheme {
     PARIS,
     UBS_ALPS,
     GYM_DEV,
-    GOOGLE_ZURICH
+    GOOGLE_ZURICH,
+    HANOI_SPA
 }
 
 data class BossLevel(
@@ -27,6 +28,9 @@ data class BossLevel(
     val arenaTheme: ArenaTheme,
     val hasShield: Boolean = false,
     val bossMaxHp: Int,
+    val bossMaxArmor: Int = 0,
+    val enablePickups: Boolean = false,
+    val multiPhase: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -206,6 +210,26 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_11 = BossLevel(
+        id = 11,
+        title = "LIVELLO 11",
+        bossName = "CARAMEL",
+        subtitle = "Hanoi Spa • 3 Fasi, armatura da spezzare, armi e power-up",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.HANOI_SPA,
+        hasShield = false,
+        bossMaxHp = 260,
+        bossMaxArmor = 80,
+        enablePickups = true,
+        multiPhase = true,
+        bossBaseSpeed = 235f,
+        bossAttackInterval = 1.45f,
+        bossEnragedAttackInterval = 1.0f,
+        bossProjectileSpeed = 540f,
+        bossEnragedProjectileSpeed = 680f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -216,7 +240,8 @@ object LevelCatalog {
         LEVEL_7,
         LEVEL_8,
         LEVEL_9,
-        LEVEL_10
+        LEVEL_10,
+        LEVEL_11
     )
 
     fun findById(id: Int): BossLevel {

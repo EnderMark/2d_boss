@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTenLevels() {
-        assertEquals(10, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllElevenLevels() {
+        assertEquals(11, LevelCatalog.levels.size)
 
         assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
         assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
@@ -32,14 +32,14 @@ class BossBattleEngineTest {
         assertEquals("DAISY", LevelCatalog.findById(8).bossName)
         assertEquals("ANDREA DATTERO", LevelCatalog.findById(9).bossName)
         assertEquals("MARCO DI GOOGLE", LevelCatalog.findById(10).bossName)
+        assertEquals("CARAMEL", LevelCatalog.findById(11).bossName)
 
         assertTrue(LevelCatalog.findById(3).hasShield)
         assertFalse(LevelCatalog.findById(4).hasShield)
-        assertEquals(ArenaTheme.ZURICH_TAX, LevelCatalog.findById(6).arenaTheme)
-        assertEquals(ArenaTheme.PARIS, LevelCatalog.findById(7).arenaTheme)
-        assertEquals(ArenaTheme.UBS_ALPS, LevelCatalog.findById(8).arenaTheme)
-        assertEquals(ArenaTheme.GYM_DEV, LevelCatalog.findById(9).arenaTheme)
-        assertEquals(ArenaTheme.GOOGLE_ZURICH, LevelCatalog.findById(10).arenaTheme)
+        assertEquals(ArenaTheme.HANOI_SPA, LevelCatalog.findById(11).arenaTheme)
+        assertTrue(LevelCatalog.findById(11).enablePickups)
+        assertTrue(LevelCatalog.findById(11).multiPhase)
+        assertEquals(80, LevelCatalog.findById(11).bossMaxArmor)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -354,5 +354,48 @@ class BossBattleEngineTest {
         assertTrue(sounds.contains(com.endermark.bossbattle.model.GameSoundEvent.ATTACK))
         assertTrue(sounds.contains(com.endermark.bossbattle.model.GameSoundEvent.CAMERA_SHUTTER))
         assertTrue(engine.drainSoundEvents().isEmpty())
+    }
+
+    @Test
+    fun levelElevenCaramelArmorPhasesAndPickups() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_11)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        val player = engine.state.player
+        assertEquals(80, boss.armor)
+        assertEquals(1, boss.phase)
+
+        // Collect a Hammer pickup placed on the player
+        engine.state.pickups.add(
+            com.endermark.bossbattle.model.ArenaPickup(
+                x = player.x,
+                y = player.y,
+                kind = com.endermark.bossbattle.model.PickupKind.WEAPON_HAMMER
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(com.endermark.bossbattle.model.WeaponType.HAMMER, player.weapon)
+        assertTrue(engine.drainSoundEvents().contains(com.endermark.bossbattle.model.GameSoundEvent.PICKUP))
+
+        // Attack Caramel's armor with Hammer until Armor Break triggers stun
+        boss.x = player.x + boss.radius + 30f
+        player.facingDir = 1
+        repeat(4) {
+            player.meleeCooldown = 0f
+            engine.triggerMeleeAttack()
+            engine.update(0.016f)
+        }
+        assertEquals(0, boss.armor)
+        assertTrue(boss.isStunned)
+        assertTrue(engine.drainSoundEvents().contains(com.endermark.bossbattle.model.GameSoundEvent.ARMOR_BREAK))
+
+        // Drop HP below 66% to verify Phase 2 transition and armor re-forge
+        boss.hp = 175
+        player.meleeCooldown = 0f
+        engine.triggerMeleeAttack()
+        engine.update(0.016f)
+        assertEquals(2, boss.phase)
+        assertEquals(50, boss.armor)
     }
 }

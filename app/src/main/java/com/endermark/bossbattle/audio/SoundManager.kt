@@ -208,6 +208,8 @@ class SoundManager(
             GameSoundEvent.BOSS_CHARGE to squareSweep(190.0, 440.0, 0.22, 0.55),
             GameSoundEvent.BOSS_VANISH to slashNoise(0.18, 0.52),
             GameSoundEvent.CAMERA_SHUTTER to cameraShutterTone(),
+            GameSoundEvent.PICKUP to arpeggioTone(doubleArrayOf(587.33, 880.00, 1174.66), 0.07, 0.65),
+            GameSoundEvent.ARMOR_BREAK to impactHit(420.0, 95.0, 0.28, 0.88),
             GameSoundEvent.VICTORY to arpeggioTone(doubleArrayOf(523.25, 659.25, 783.99, 1046.50), 0.13, 0.65),
             GameSoundEvent.DEFEAT to arpeggioTone(doubleArrayOf(392.00, 349.23, 311.13, 220.00), 0.17, 0.65)
         )

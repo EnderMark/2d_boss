@@ -27,7 +27,24 @@ enum class ProjectileKind {
     HEART,
     SCREAM_WAVE,
     RICE_CHICKEN,
-    DATING_FLEX
+    DATING_FLEX,
+    HOT_STONE
+}
+
+enum class WeaponType(val displayName: String) {
+    SWORD("SPADA"),
+    HAMMER("MARTELLO"),
+    KATANA("KATANA"),
+    SPEAR("LANCIA")
+}
+
+enum class PickupKind(val label: String) {
+    WEAPON_HAMMER("MARTELLO"),
+    WEAPON_KATANA("KATANA"),
+    WEAPON_SPEAR("LANCIA"),
+    HEAL("+1 VITA"),
+    SPEED_BOOST("VELOCITÀ"),
+    POWER_SURGE("FURIA x2")
 }
 
 enum class GameSoundEvent {
@@ -42,9 +59,19 @@ enum class GameSoundEvent {
     BOSS_CHARGE,
     BOSS_VANISH,
     CAMERA_SHUTTER,
+    PICKUP,
+    ARMOR_BREAK,
     VICTORY,
     DEFEAT
 }
+
+data class ArenaPickup(
+    val x: Float,
+    val y: Float,
+    val radius: Float = 32f,
+    val kind: PickupKind,
+    var life: Float = 11f
+)
 
 data class Player(
     var x: Float,
@@ -63,13 +90,23 @@ data class Player(
     var meleeCooldown: Float = 0f,
     var meleeHitApplied: Boolean = false,
     var isBlocking: Boolean = false,
-    var shieldFlashTimer: Float = 0f
+    var shieldFlashTimer: Float = 0f,
+    var weapon: WeaponType = WeaponType.SWORD,
+    var weaponTimer: Float = 0f,
+    var speedBoostTimer: Float = 0f,
+    var damageBoostTimer: Float = 0f
 ) {
     val isInvulnerable: Boolean
         get() = invulnerableTimer > 0f
 
     val isAttacking: Boolean
         get() = meleeTimer > 0f
+
+    val hasSpeedBoost: Boolean
+        get() = speedBoostTimer > 0f
+
+    val hasDamageBoost: Boolean
+        get() = damageBoostTimer > 0f
 
     companion object {
         const val MAX_HP = 5
@@ -85,6 +122,10 @@ data class Boss(
     var hp: Int = MAX_HP,
     val maxHp: Int = MAX_HP,
     var displayedHp: Float = MAX_HP.toFloat(),
+    var armor: Int = 0,
+    var maxArmor: Int = 0,
+    var phase: Int = 1,
+    var stunTimer: Float = 0f,
     var velocityX: Float = 240f,
     var attackCooldown: Float = 1.0f,
     var hitFlashTimer: Float = 0f,
@@ -100,8 +141,17 @@ data class Boss(
     val displayedHpRatio: Float
         get() = (displayedHp / maxHp.toFloat()).coerceIn(0f, 1f)
 
+    val armorRatio: Float
+        get() = if (maxArmor > 0) (armor.toFloat() / maxArmor.toFloat()).coerceIn(0f, 1f) else 0f
+
+    val hasArmor: Boolean
+        get() = armor > 0
+
+    val isStunned: Boolean
+        get() = stunTimer > 0f
+
     val isEnraged: Boolean
-        get() = hp <= maxHp / 2
+        get() = hp <= maxHp / 2 || phase >= 2
 
     val isVanished: Boolean
         get() = vanishTimer > 0f
@@ -145,6 +195,7 @@ data class GameState(
     val boss: Boss,
     val projectiles: MutableList<Projectile> = mutableListOf(),
     val particles: MutableList<HitParticle> = mutableListOf(),
+    val pickups: MutableList<ArenaPickup> = mutableListOf(),
     var elapsedTime: Float = 0f,
     var endStateCooldown: Float = 0f,
     val groundY: Float = 1260f
