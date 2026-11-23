@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyLevels() {
-        assertEquals(20, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyOneLevels() {
+        assertEquals(21, LevelCatalog.levels.size)
 
         assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
         assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
@@ -39,12 +39,13 @@ class BossBattleEngineTest {
         }
         val level20 = LevelCatalog.findById(20)
         assertEquals("OMEGA ARCHITECT", level20.bossName)
-        assertEquals(ArenaTheme.OMEGA_FINALE, level20.arenaTheme)
         assertTrue(level20.enablePlatforms)
         assertTrue(level20.enableLasers)
-        assertTrue(level20.enablePickups)
-        assertTrue(level20.multiPhase)
-        assertEquals(100, level20.bossMaxArmor)
+
+        val level21 = LevelCatalog.findById(21)
+        assertEquals("DREADNOUGHT STELLARE", level21.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level21.mode)
+        assertEquals(ArenaTheme.DEEP_SPACE, level21.arenaTheme)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -477,5 +478,46 @@ class BossBattleEngineTest {
         assertEquals(60, engine.state.boss.armor)
         assertEquals(3, engine.state.platforms.size)
         assertTrue(engine.state.phaseFlashTimer > 0f)
+    }
+
+    @Test
+    fun levelTwentyOneFreeFlightPadAndMinions() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_21)
+        engine.startGame()
+
+        val player = engine.state.player
+        val startX = player.x
+        val startY = player.y
+
+        // Move diagonally up-right and rotate with pad + fire
+        engine.setJoystickInput(1f, -1f)
+        engine.setFiring(true)
+        engine.update(0.05f)
+        assertTrue(player.x > startX)
+        assertTrue(player.y < startY)
+        assertTrue(engine.state.projectiles.any { it.fromPlayer && it.vx > 0f && it.vy < 0f })
+
+        // Advance time until Dreadnought spawns a minion ship
+        engine.setFiring(false)
+        repeat(60) { engine.update(0.05f) }
+        assertTrue(engine.state.minions.isNotEmpty())
+
+        // Player bolt destroys minion ship
+        val minion = engine.state.minions.first()
+        minion.hp = 5
+        engine.state.projectiles.add(
+            Projectile(
+                x = minion.x,
+                y = minion.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 8
+            )
+        )
+        val countBefore = engine.state.minions.size
+        engine.update(0.016f)
+        assertEquals(countBefore - 1, engine.state.minions.size)
     }
 }

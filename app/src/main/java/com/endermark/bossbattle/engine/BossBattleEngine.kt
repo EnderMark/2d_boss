@@ -12,6 +12,7 @@ import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.HitParticle
 import com.endermark.bossbattle.model.LaserBeam
 import com.endermark.bossbattle.model.LevelCatalog
+import com.endermark.bossbattle.model.MinionShip
 import com.endermark.bossbattle.model.MovingPlatform
 import com.endermark.bossbattle.model.PickupKind
 import com.endermark.bossbattle.model.Player
@@ -37,6 +38,8 @@ class BossBattleEngine(
 
     private var targetPlayerX: Float = worldWidth / 2f
     private var moveInput: Int = 0
+    private var isFiring: Boolean = false
+    private var minionSpawnTimer: Float = MINION_FIRST_SPAWN_DELAY
     private var nextMeleeBossAttackIsCharge: Boolean = false
     private var complaintIndex: Int = 0
     private var pickupSpawnTimer: Float = PICKUP_FIRST_SPAWN_DELAY
@@ -77,6 +80,21 @@ class BossBattleEngine(
 
     fun setMoveInput(direction: Int) {
         moveInput = direction.coerceIn(-1, 1)
+    }
+
+    fun setJoystickInput(dx: Float, dy: Float) {
+        val mag = hypot(dx, dy)
+        if (mag > 1f) {
+            state.joystickX = dx / mag
+            state.joystickY = dy / mag
+        } else {
+            state.joystickX = dx
+            state.joystickY = dy
+        }
+    }
+
+    fun setFiring(firing: Boolean) {
+        isFiring = firing
     }
 
     fun setBlocking(blocking: Boolean) {
@@ -152,9 +170,14 @@ class BossBattleEngine(
         state.pickups.clear()
         state.platforms.clear()
         state.lasers.clear()
+        state.minions.clear()
+        state.joystickX = 0f
+        state.joystickY = 0f
         state.phaseFlashTimer = 0f
         pendingSoundEvents.clear()
         moveInput = 0
+        isFiring = false
+        minionSpawnTimer = MINION_FIRST_SPAWN_DELAY
         nextMeleeBossAttackIsCharge = false
         complaintIndex = 0
         pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY
@@ -210,9 +233,10 @@ class BossBattleEngine(
                 y = state.worldHeight - PLAYER_BOTTOM_OFFSET
                 hp = maxHp
                 invulnerableTimer = 0f
-                fireCooldown = 0.15f
+                fireCooldown = if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER) 0f else 0.15f
                 vx = 0f
                 vy = 0f
+                angle = -1.5708f
                 onGround = true
                 jumpsRemaining = Player.MAX_JUMPS
                 facingDir = 1
@@ -267,12 +291,20 @@ class BossBattleEngine(
         if (level.enablePlatforms) {
             updatePlatforms(dt)
         }
-        if (level.mode == BattleMode.MELEE_PLATFORMER) {
-            updateMeleePlayer(dt)
-            updateMeleeBoss(dt)
-        } else {
-            updateShooterPlayer(dt)
-            updateShooterBoss(dt)
+        when (level.mode) {
+            BattleMode.MELEE_PLATFORMER -> {
+                updateMeleePlayer(dt)
+                updateMeleeBoss(dt)
+            }
+            BattleMode.FREE_FLIGHT_SHOOTER -> {
+                updateFreeFlightPlayer(dt)
+                updateFreeFlightBoss(dt)
+                updateMinions(dt)
+            }
+            BattleMode.SHOOTER -> {
+                updateShooterPlayer(dt)
+                updateShooterBoss(dt)
+            }
         }
         if (level.enablePickups) {
             updatePickups(dt)
@@ -305,6 +337,173 @@ class BossBattleEngine(
         if (player.fireCooldown <= 0f) {
             spawnPlayerShot()
             player.fireCooldown = PLAYER_FIRE_INTERVAL
+        }
+    }
+
+    private fun updateFreeFlightPlayer(dt: Float) {
+        val player = state.player
+        val jx = state.joystickX
+        val jy = state.joystickY
+        val mag = hypot(jx, jy)
+        if (mag > 0.12f) {
+            player.angle = atan2(jy.toDouble(), jx.toDouble()).toFloat()
+            player.vx = jx * FREE_FLIGHT_PLAYER_SPEED
+            player.vy = jy * FREE_FLIGHT_PLAYER_SPEED
+        } else {
+            player.vx = 0f
+            player.vy = 0f
+        }
+
+        player.x += player.vx * dt
+        player.y += player.vy * dt
+
+        val marginX = player.radius + ARENA_PADDING
+        val minY = 200f + player.radius
+        val maxY = state.worldHeight - player.radius - ARENA_PADDING
+        player.x = player.x.coerceIn(marginX, state.worldWidth - marginX)
+        player.y = player.y.coerceIn(minY, maxY)
+
+        if (player.invulnerableTimer > 0f) {
+            player.invulnerableTimer = max(0f, player.invulnerableTimer - dt)
+        }
+
+        if (player.fireCooldown > 0f) {
+            player.fireCooldown = max(0f, player.fireCooldown - dt)
+        }
+        if (isFiring && player.fireCooldown <= 0f) {
+            emitSound(GameSoundEvent.PLAYER_SHOT)
+            val cosA = cos(player.angle.toDouble()).toFloat()
+            val sinA = sin(player.angle.toDouble()).toFloat()
+            state.projectiles.add(
+                Projectile(
+                    x = player.x + cosA * (player.radius + 10f),
+                    y = player.y + sinA * (player.radius + 10f),
+                    vx = cosA * FREE_FLIGHT_BOLT_SPEED,
+                    vy = sinA * FREE_FLIGHT_BOLT_SPEED,
+                    radius = 12f,
+                    fromPlayer = true,
+                    damage = 8,
+                    kind = ProjectileKind.PLAYER_BOLT
+                )
+            )
+            player.fireCooldown = FREE_FLIGHT_FIRE_INTERVAL
+        }
+    }
+
+    private fun updateFreeFlightBoss(dt: Float) {
+        val boss = state.boss
+        if (boss.hitFlashTimer > 0f) {
+            boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
+        }
+
+        // Smooth orbital figure-8 flight across upper-central space
+        val speedScale = if (boss.isEnraged) 1.35f else 1.0f
+        val t = state.elapsedTime * speedScale
+        val targetX = state.worldWidth * 0.5f + sin(t * 0.75f) * 290f
+        val targetY = 440f + sin(t * 1.5f) * 115f
+        boss.x += (targetX - boss.x) * (3.2f * dt).coerceAtMost(1f)
+        boss.y += (targetY - boss.y) * (3.2f * dt).coerceAtMost(1f)
+
+        boss.attackCooldown -= dt
+        if (boss.attackCooldown <= 0f) {
+            spawnDreadnoughtSalvo()
+            boss.attackCooldown = if (boss.isEnraged) {
+                level.bossEnragedAttackInterval
+            } else {
+                level.bossAttackInterval
+            }
+        }
+
+        minionSpawnTimer -= dt
+        if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
+            spawnMinionShip()
+            minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+        }
+    }
+
+    private fun spawnDreadnoughtSalvo() {
+        val boss = state.boss
+        val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - boss.y).toDouble(), (player.x - boss.x).toDouble())
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.36, baseAngle - 0.18, baseAngle, baseAngle + 0.18, baseAngle + 0.36)
+        } else {
+            listOf(baseAngle - 0.22, baseAngle, baseAngle + 0.22)
+        }
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + (cos(angle) * boss.radius * 0.7f).toFloat(),
+                    y = boss.y + (sin(angle) * boss.radius * 0.7f).toFloat(),
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 18f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.BOSS_ORB
+                )
+            )
+        }
+    }
+
+    private fun spawnMinionShip() {
+        val boss = state.boss
+        val side = if (state.minions.size % 2 == 0) -1f else 1f
+        val mx = (boss.x + side * (boss.radius + 32f)).coerceIn(80f, state.worldWidth - 80f)
+        val my = (boss.y + 40f).coerceIn(240f, state.worldHeight - 240f)
+        emitSound(GameSoundEvent.BOSS_CHARGE)
+        spawnHitParticles(mx, my, COLOR_DOUBLE_JUMP_SPARK, 10)
+        state.minions.add(
+            MinionShip(
+                x = mx,
+                y = my,
+                fireCooldown = 1.2f
+            )
+        )
+    }
+
+    private fun updateMinions(dt: Float) {
+        val player = state.player
+        for (minion in state.minions) {
+            if (minion.hitFlashTimer > 0f) {
+                minion.hitFlashTimer = max(0f, minion.hitFlashTimer - dt)
+            }
+            val dx = player.x - minion.x
+            val dy = player.y - minion.y
+            val dist = hypot(dx, dy).coerceAtLeast(1f)
+            minion.angle = atan2(dy.toDouble(), dx.toDouble()).toFloat()
+
+            // Approach player smoothly and orbit at mid-range
+            val speed = MINION_SPEED
+            if (dist > 170f) {
+                minion.vx = (dx / dist) * speed
+                minion.vy = (dy / dist) * speed
+            } else {
+                // Orbit tangentially
+                minion.vx = (-dy / dist) * speed * 0.75f
+                minion.vy = (dx / dist) * speed * 0.75f
+            }
+            minion.x = (minion.x + minion.vx * dt).coerceIn(minion.radius + 20f, state.worldWidth - minion.radius - 20f)
+            minion.y = (minion.y + minion.vy * dt).coerceIn(210f, state.worldHeight - minion.radius - 20f)
+
+            minion.fireCooldown -= dt
+            if (minion.fireCooldown <= 0f) {
+                state.projectiles.add(
+                    Projectile(
+                        x = minion.x + cos(minion.angle.toDouble()).toFloat() * (minion.radius + 6f),
+                        y = minion.y + sin(minion.angle.toDouble()).toFloat() * (minion.radius + 6f),
+                        vx = cos(minion.angle.toDouble()).toFloat() * MINION_BOLT_SPEED,
+                        vy = sin(minion.angle.toDouble()).toFloat() * MINION_BOLT_SPEED,
+                        radius = 12f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.BOSS_ORB
+                    )
+                )
+                minion.fireCooldown = MINION_FIRE_INTERVAL
+            }
         }
     }
 
@@ -830,6 +1029,32 @@ class BossBattleEngine(
         while (iterator.hasNext()) {
             val projectile = iterator.next()
             if (projectile.fromPlayer) {
+                var hitMinion = false
+                val minionIter = state.minions.iterator()
+                while (minionIter.hasNext()) {
+                    val minion = minionIter.next()
+                    if (circlesCollide(
+                            projectile.x, projectile.y, projectile.radius,
+                            minion.x, minion.y, minion.radius
+                        )
+                    ) {
+                        hitMinion = true
+                        iterator.remove()
+                        minion.hp -= projectile.damage
+                        minion.hitFlashTimer = 0.08f
+                        if (minion.hp <= 0) {
+                            minionIter.remove()
+                            emitSound(GameSoundEvent.BOSS_HIT)
+                            spawnHitParticles(minion.x, minion.y, COLOR_VICTORY_SPARK, 14)
+                        } else {
+                            emitSound(GameSoundEvent.BOSS_HIT)
+                            spawnHitParticles(projectile.x, projectile.y, COLOR_BOSS_HIT_SPARK, 6)
+                        }
+                        break
+                    }
+                }
+                if (hitMinion) continue
+
                 if (!boss.isVanished && circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         boss.x, boss.y, boss.radius
@@ -863,6 +1088,22 @@ class BossBattleEngine(
                         if (state.status != GameStatus.PLAYING) {
                             return
                         }
+                    }
+                }
+            }
+        }
+
+        // Free-flight body contact with Dreadnought or minion ships
+        if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER && !player.isInvulnerable) {
+            if (circlesCollide(player.x, player.y, player.radius * 0.85f, boss.x, boss.y, boss.radius * 0.85f)) {
+                applyDamageToPlayer(1)
+                if (state.status != GameStatus.PLAYING) return
+            } else {
+                for (minion in state.minions) {
+                    if (circlesCollide(player.x, player.y, player.radius * 0.85f, minion.x, minion.y, minion.radius * 0.85f)) {
+                        applyDamageToPlayer(1)
+                        if (state.status != GameStatus.PLAYING) return
+                        break
                     }
                 }
             }
@@ -1708,6 +1949,7 @@ class BossBattleEngine(
             ArenaTheme.HANOI -> 64f
             ArenaTheme.HANOI_SPA -> 68f
             ArenaTheme.OMEGA_FINALE -> 82f
+            ArenaTheme.DEEP_SPACE -> 104f
             ArenaTheme.ZURICH -> 66f
             ArenaTheme.STUDIO -> 74f
             ArenaTheme.ZURICH_TAX -> 68f
@@ -1760,6 +2002,17 @@ class BossBattleEngine(
         private const val PLAYER_PROJECTILE_SPEED = 1150f
         private const val PLAYER_SHOT_DAMAGE = 5
         private const val PLAYER_INVULNERABLE_DURATION = 1.0f
+
+        private const val FREE_FLIGHT_PLAYER_SPEED = 520f
+        private const val FREE_FLIGHT_BOLT_SPEED = 1050f
+        private const val FREE_FLIGHT_FIRE_INTERVAL = 0.20f
+        private const val MAX_ACTIVE_MINIONS = 4
+        private const val MINION_FIRST_SPAWN_DELAY = 2.6f
+        private const val MINION_SPAWN_INTERVAL = 4.2f
+        private const val MINION_ENRAGED_SPAWN_INTERVAL = 2.9f
+        private const val MINION_SPEED = 220f
+        private const val MINION_BOLT_SPEED = 420f
+        private const val MINION_FIRE_INTERVAL = 1.85f
 
         private const val PLATFORMER_MOVE_SPEED = 460f
         private const val SHIELD_MOVE_MULTIPLIER = 0.55f

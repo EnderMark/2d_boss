@@ -473,6 +473,11 @@ class GameRenderer {
     fun attackButtonRect(hasShield: Boolean): RectF =
         if (hasShield) RectF(808f, 1365f, 968f, 1520f) else RectF(782f, 1360f, 952f, 1520f)
 
+    fun padCenterX(): Float = 200f
+    fun padCenterY(): Float = 1405f
+    fun padRadius(): Float = 115f
+    fun fireButtonRect(): RectF = RectF(730f, 1320f, 940f, 1495f)
+
     fun isMenuButtonHit(worldX: Float, worldY: Float, state: GameState): Boolean {
         if (state.status == GameStatus.PLAYING) return false
         val rect = menuButtonRect(state.worldWidth, state.worldHeight)
@@ -494,10 +499,12 @@ class GameRenderer {
         canvas.scale(scale, scale)
 
         val isMelee = state.level.mode == BattleMode.MELEE_PLATFORMER
+        val isFreeFlight = state.level.mode == BattleMode.FREE_FLIGHT_SHOOTER
         when (state.level.arenaTheme) {
             ArenaTheme.HANOI -> drawHanoiBackground(canvas, state)
             ArenaTheme.HANOI_SPA -> drawHanoiSpaBackground(canvas, state)
             ArenaTheme.OMEGA_FINALE -> drawOmegaFinaleBackground(canvas, state)
+            ArenaTheme.DEEP_SPACE -> drawDeepSpaceBackground(canvas, state)
             ArenaTheme.ZURICH -> drawZurichBackground(canvas, state)
             ArenaTheme.ZURICH_TAX -> drawZurichTaxBackground(canvas, state)
             ArenaTheme.STUDIO -> drawStudioBackground(canvas, state)
@@ -507,7 +514,7 @@ class GameRenderer {
             ArenaTheme.GOOGLE_ZURICH -> drawGoogleCampusBackground(canvas, state)
             else -> drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
         }
-        if (isMelee || state.level.arenaTheme != ArenaTheme.SPACE) {
+        if (isMelee || (state.level.arenaTheme != ArenaTheme.SPACE && state.level.arenaTheme != ArenaTheme.DEEP_SPACE)) {
             drawGroundArena(canvas, state)
         }
 
@@ -516,6 +523,7 @@ class GameRenderer {
         drawPickups(canvas, state)
         drawLasers(canvas, state)
         drawProjectiles(canvas, state)
+        drawMinions(canvas, state)
         drawParticles(canvas, state)
 
         if (state.boss.hp > 0 && !state.boss.isVanished) {
@@ -523,6 +531,7 @@ class GameRenderer {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.DEEP_SPACE -> drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH_TAX -> drawAlessioTaxBoss(canvas, state.boss, state.elapsedTime)
@@ -535,14 +544,22 @@ class GameRenderer {
             }
         }
 
-        if (isMelee) {
-            drawMeleeCharacter(canvas, state.player, state.elapsedTime, state.level.hasShield)
-            val hudY = if (state.boss.maxArmor > 0) 204f else 178f
-            drawPlayerHud(canvas, state.player, baseY = hudY, showWeaponStatus = state.level.enablePickups)
-            drawMeleeControls(canvas, state.level.hasShield)
-        } else {
-            drawPlayerShip(canvas, state.player, state.elapsedTime)
-            drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f, showWeaponStatus = false)
+        when {
+            isMelee -> {
+                drawMeleeCharacter(canvas, state.player, state.elapsedTime, state.level.hasShield)
+                val hudY = if (state.boss.maxArmor > 0) 204f else 178f
+                drawPlayerHud(canvas, state.player, baseY = hudY, showWeaponStatus = state.level.enablePickups)
+                drawMeleeControls(canvas, state.level.hasShield)
+            }
+            isFreeFlight -> {
+                drawRotatedPlayerShip(canvas, state.player, state.elapsedTime)
+                drawPlayerHud(canvas, state.player, baseY = 178f, showWeaponStatus = false)
+                drawFreeFlightControls(canvas, state)
+            }
+            else -> {
+                drawPlayerShip(canvas, state.player, state.elapsedTime)
+                drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f, showWeaponStatus = false)
+            }
         }
 
         if (state.phaseFlashTimer > 0f) {
@@ -2047,6 +2064,150 @@ class GameRenderer {
         }
     }
 
+    private fun drawDeepSpaceBackground(canvas: Canvas, state: GameState) {
+        skyGradientPaint.shader = LinearGradient(
+            0f,
+            0f,
+            0f,
+            state.worldHeight,
+            intArrayOf(
+                Color.parseColor("#050712"),
+                Color.parseColor("#0D1229"),
+                Color.parseColor("#140E26")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, state.worldWidth, state.worldHeight, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        // Twinkling starfield
+        for (i in 0 until 36) {
+            val sx = ((i * 197 + 73) % 960 + 20).toFloat()
+            val sy = ((i * 313 + 111) % 1520 + 40).toFloat()
+            val twinkle = 0.5f + 0.5f * sin(state.elapsedTime * 3.5f + i)
+            val starR = if (i % 4 == 0) 3.5f else 2.0f
+            particlePaint.color = Color.WHITE
+            particlePaint.alpha = (110 + twinkle * 140).toInt()
+            canvas.drawCircle(sx, sy, starR, particlePaint)
+        }
+        particlePaint.alpha = 255
+    }
+
+    private fun drawDreadnoughtBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+
+        // Twin rear engine thrusters
+        val glow = 16f + sin(elapsedTime * 24f) * 5f
+        canvas.drawCircle(x - r * 0.48f, y - r * 0.72f, glow, hanoiLanternGoldPaint)
+        canvas.drawCircle(x + r * 0.48f, y - r * 0.72f, glow, hanoiLanternGoldPaint)
+
+        // Massive Dreadnought hull
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            boss.isEnraged -> Color.parseColor("#880E4F")
+            else -> Color.parseColor("#37474F")
+        }
+        tempPath.reset()
+        tempPath.moveTo(x, y + r * 1.02f)
+        tempPath.lineTo(x + r * 0.96f, y + r * 0.25f)
+        tempPath.lineTo(x + r * 0.78f, y - r * 0.76f)
+        tempPath.lineTo(x - r * 0.78f, y - r * 0.76f)
+        tempPath.lineTo(x - r * 0.96f, y + r * 0.25f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossArmorPaint)
+        canvas.drawPath(tempPath, bossOutlinePaint)
+
+        // Side hangar bays & turrets
+        tempRect.set(x - r * 1.12f, y - 16f, x - r * 0.72f, y + 32f)
+        canvas.drawRoundRect(tempRect, 8f, 8f, controlBgPaint)
+        canvas.drawRoundRect(tempRect, 8f, 8f, controlAttackBorderPaint)
+        tempRect.set(x + r * 0.72f, y - 16f, x + r * 1.12f, y + 32f)
+        canvas.drawRoundRect(tempRect, 8f, 8f, controlBgPaint)
+        canvas.drawRoundRect(tempRect, 8f, 8f, controlAttackBorderPaint)
+
+        // Glowing central bridge / reactor core
+        bossCorePaint.color = when {
+            isHit -> Color.WHITE
+            boss.isEnraged -> Color.parseColor("#FFAB00")
+            else -> Color.parseColor("#FF5252")
+        }
+        canvas.drawCircle(x, y + r * 0.08f, r * 0.30f, bossCorePaint)
+        canvas.drawCircle(x, y + r * 0.08f, r * 0.14f, swissCrossWhitePaint)
+    }
+
+    private fun drawMinions(canvas: Canvas, state: GameState) {
+        for (minion in state.minions) {
+            val r = minion.radius
+            canvas.save()
+            canvas.translate(minion.x, minion.y)
+            canvas.rotate(Math.toDegrees(minion.angle.toDouble()).toFloat() + 90f)
+
+            bossArmorPaint.color = if (minion.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FF7043")
+            tempPath.reset()
+            tempPath.moveTo(0f, -r * 1.15f)
+            tempPath.lineTo(r * 0.9f, r * 0.85f)
+            tempPath.lineTo(0f, r * 0.45f)
+            tempPath.lineTo(-r * 0.9f, r * 0.85f)
+            tempPath.close()
+            canvas.drawPath(tempPath, bossArmorPaint)
+            canvas.drawCircle(0f, 0f, r * 0.25f, hanoiLanternGoldPaint)
+            canvas.restore()
+        }
+    }
+
+    private fun drawRotatedPlayerShip(canvas: Canvas, player: Player, elapsedTime: Float) {
+        if (player.isInvulnerable && ((elapsedTime * 16f).toInt() % 2 == 0)) {
+            return
+        }
+        val r = player.radius
+        canvas.save()
+        canvas.translate(player.x, player.y)
+        canvas.rotate(Math.toDegrees(player.angle.toDouble()).toFloat() + 90f)
+
+        // Thruster flame when moving
+        if (abs(player.vx) > 20f || abs(player.vy) > 20f) {
+            val flameLen = r * (0.9f + 0.25f * sin(elapsedTime * 30f))
+            canvas.drawCircle(0f, r * 0.85f, flameLen * 0.32f, hanoiLanternGoldPaint)
+        }
+
+        tempPath.reset()
+        tempPath.moveTo(0f, -r * 1.2f)
+        tempPath.lineTo(r, r * 0.9f)
+        tempPath.lineTo(0f, r * 0.45f)
+        tempPath.lineTo(-r, r * 0.9f)
+        tempPath.close()
+        canvas.drawPath(tempPath, playerPaint)
+        canvas.drawCircle(0f, r * 0.05f, r * 0.28f, playerAccentPaint)
+        canvas.restore()
+    }
+
+    private fun drawFreeFlightControls(canvas: Canvas, state: GameState) {
+        val cx = padCenterX()
+        val cy = padCenterY()
+        val pr = padRadius()
+
+        // Outer translucent virtual analog pad
+        val padBg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(120, 30, 37, 64)
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(cx, cy, pr, padBg)
+        canvas.drawCircle(cx, cy, pr, controlBorderPaint)
+
+        // Inner thumb knob showing current stick offset
+        val knobX = cx + state.joystickX * (pr * 0.65f)
+        val knobY = cy + state.joystickY * (pr * 0.65f)
+        canvas.drawCircle(knobX, knobY, 44f, playerPaint)
+        canvas.drawCircle(knobX, knobY, 44f, controlShieldBorderPaint)
+
+        // Fire button
+        drawControlButton(canvas, fireButtonRect(), "FUOCO", style = ControlStyle.ATTACK)
+    }
+
     private fun drawParticles(canvas: Canvas, state: GameState) {
         for (particle in state.particles) {
             val alpha = ((particle.life / particle.maxLife).coerceIn(0f, 1f) * 255).toInt()
@@ -2111,6 +2272,7 @@ class GameRenderer {
         val centerY = state.worldHeight / 2f
 
         val readyHint = when {
+            state.level.mode == BattleMode.FREE_FLIGHT_SHOOTER -> "${state.boss.name} • Pad 360° per volare/ruotare + FUOCO"
             state.level.hasShield -> "${state.boss.name} • Spada, scudo e doppio salto"
             state.level.mode == BattleMode.MELEE_PLATFORMER -> "${state.boss.name} • Muovi, salta (x2) e colpisci"
             else -> "${state.boss.name} • Trascina per schivare"

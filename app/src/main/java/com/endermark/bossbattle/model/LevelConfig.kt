@@ -2,7 +2,8 @@ package com.endermark.bossbattle.model
 
 enum class BattleMode {
     SHOOTER,
-    MELEE_PLATFORMER
+    MELEE_PLATFORMER,
+    FREE_FLIGHT_SHOOTER
 }
 
 enum class ArenaTheme {
@@ -17,7 +18,8 @@ enum class ArenaTheme {
     GYM_DEV,
     GOOGLE_ZURICH,
     HANOI_SPA,
-    OMEGA_FINALE
+    OMEGA_FINALE,
+    DEEP_SPACE
 }
 
 data class BossLevel(
@@ -394,6 +396,23 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_21 = BossLevel(
+        id = 21,
+        title = "LIVELLO 21 • SPAZIO 360°",
+        bossName = "DREADNOUGHT STELLARE",
+        subtitle = "Pad 360° • Vola libero, ruota, spara e distruggi gli scagnozzi",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 280,
+        bossBaseSpeed = 160f,
+        bossAttackInterval = 1.25f,
+        bossEnragedAttackInterval = 0.85f,
+        bossProjectileSpeed = 480f,
+        bossEnragedProjectileSpeed = 590f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -414,7 +433,8 @@ object LevelCatalog {
         LEVEL_17,
         LEVEL_18,
         LEVEL_19,
-        LEVEL_20
+        LEVEL_20,
+        LEVEL_21
     )
 
     fun findById(id: Int): BossLevel {

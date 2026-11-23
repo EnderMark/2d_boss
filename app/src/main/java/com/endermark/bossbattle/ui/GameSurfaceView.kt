@@ -103,6 +103,8 @@ class GameSurfaceView(
                         engine.setPlayerTargetX(x)
                     }
                 }
+            } else if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER) {
+                handleFreeFlightTouch(event, action, actionIndex)
             } else {
                 handleMeleeTouch(event, action, actionIndex, actionX, actionY)
             }
@@ -112,6 +114,46 @@ class GameSurfaceView(
             post { onExitToMenu() }
         }
         return true
+    }
+
+    private fun handleFreeFlightTouch(
+        event: MotionEvent,
+        action: Int,
+        actionIndex: Int
+    ) {
+        val padCx = renderer.padCenterX()
+        val padCy = renderer.padCenterY()
+        val padR = renderer.padRadius()
+        val fireRect = renderer.fireButtonRect()
+
+        var joyX = 0f
+        var joyY = 0f
+        var firing = false
+
+        val ignoreIndex = if (
+            action == MotionEvent.ACTION_UP ||
+            action == MotionEvent.ACTION_POINTER_UP ||
+            action == MotionEvent.ACTION_CANCEL
+        ) {
+            actionIndex
+        } else {
+            -1
+        }
+
+        if (action != MotionEvent.ACTION_CANCEL) {
+            for (i in 0 until event.pointerCount) {
+                if (i == ignoreIndex) continue
+                val (px, py) = screenToWorld(event.getX(i), event.getY(i))
+                if (fireRect.contains(px, py)) {
+                    firing = true
+                } else if (px < engine.state.worldWidth * 0.58f) {
+                    joyX = (px - padCx) / padR
+                    joyY = (py - padCy) / padR
+                }
+            }
+        }
+        engine.setJoystickInput(joyX, joyY)
+        engine.setFiring(firing)
     }
 
     private fun handleMeleeTouch(

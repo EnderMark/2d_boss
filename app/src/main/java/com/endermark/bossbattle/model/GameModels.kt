@@ -96,6 +96,23 @@ data class LaserBeam(
         get() = telegraphTimer <= 0f && activeTimer > 0f
 }
 
+data class MinionShip(
+    var x: Float,
+    var y: Float,
+    var vx: Float = 0f,
+    var vy: Float = 0f,
+    val radius: Float = 26f,
+    var hp: Int = MAX_HP,
+    val maxHp: Int = MAX_HP,
+    var angle: Float = 1.5708f,
+    var fireCooldown: Float = 1.5f,
+    var hitFlashTimer: Float = 0f
+) {
+    companion object {
+        const val MAX_HP = 15
+    }
+}
+
 data class Player(
     var x: Float,
     var y: Float,
@@ -106,6 +123,7 @@ data class Player(
     var fireCooldown: Float = 0f,
     var vx: Float = 0f,
     var vy: Float = 0f,
+    var angle: Float = -1.5708f,
     var onGround: Boolean = true,
     var jumpsRemaining: Int = MAX_JUMPS,
     var facingDir: Int = 1,
@@ -221,6 +239,9 @@ data class GameState(
     val pickups: MutableList<ArenaPickup> = mutableListOf(),
     val platforms: MutableList<MovingPlatform> = mutableListOf(),
     val lasers: MutableList<LaserBeam> = mutableListOf(),
+    val minions: MutableList<MinionShip> = mutableListOf(),
+    var joystickX: Float = 0f,
+    var joystickY: Float = 0f,
     var elapsedTime: Float = 0f,
     var endStateCooldown: Float = 0f,
     var phaseFlashTimer: Float = 0f,
