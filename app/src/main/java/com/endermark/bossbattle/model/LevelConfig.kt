@@ -16,7 +16,8 @@ enum class ArenaTheme {
     UBS_ALPS,
     GYM_DEV,
     GOOGLE_ZURICH,
-    HANOI_SPA
+    HANOI_SPA,
+    OMEGA_FINALE
 }
 
 data class BossLevel(
@@ -31,6 +32,8 @@ data class BossLevel(
     val bossMaxArmor: Int = 0,
     val enablePickups: Boolean = false,
     val multiPhase: Boolean = false,
+    val enablePlatforms: Boolean = false,
+    val enableLasers: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -369,6 +372,28 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_20 = BossLevel(
+        id = 20,
+        title = "LIVELLO 20 • FINALE",
+        bossName = "OMEGA ARCHITECT",
+        subtitle = "3 Scenari & Fasi • Piattaforme mobili, raggi laser, armatura e power-up",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.OMEGA_FINALE,
+        hasShield = false,
+        bossMaxHp = 360,
+        bossMaxArmor = 100,
+        enablePickups = true,
+        multiPhase = true,
+        enablePlatforms = true,
+        enableLasers = true,
+        bossBaseSpeed = 260f,
+        bossAttackInterval = 1.40f,
+        bossEnragedAttackInterval = 0.95f,
+        bossProjectileSpeed = 570f,
+        bossEnragedProjectileSpeed = 700f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -388,7 +413,8 @@ object LevelCatalog {
         LEVEL_16,
         LEVEL_17,
         LEVEL_18,
-        LEVEL_19
+        LEVEL_19,
+        LEVEL_20
     )
 
     fun findById(id: Int): BossLevel {

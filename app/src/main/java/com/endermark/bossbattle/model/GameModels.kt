@@ -61,6 +61,7 @@ enum class GameSoundEvent {
     CAMERA_SHUTTER,
     PICKUP,
     ARMOR_BREAK,
+    LASER_FIRE,
     VICTORY,
     DEFEAT
 }
@@ -72,6 +73,28 @@ data class ArenaPickup(
     val kind: PickupKind,
     var life: Float = 11f
 )
+
+data class MovingPlatform(
+    var x: Float,
+    var y: Float,
+    val width: Float,
+    val height: Float = 22f,
+    var vx: Float,
+    val minX: Float,
+    val maxX: Float
+)
+
+data class LaserBeam(
+    val isHorizontal: Boolean,
+    val position: Float,
+    val thickness: Float = 44f,
+    var telegraphTimer: Float = 0.78f,
+    var activeTimer: Float = 0.55f,
+    var firedSound: Boolean = false
+) {
+    val isActive: Boolean
+        get() = telegraphTimer <= 0f && activeTimer > 0f
+}
 
 data class Player(
     var x: Float,
@@ -196,7 +219,10 @@ data class GameState(
     val projectiles: MutableList<Projectile> = mutableListOf(),
     val particles: MutableList<HitParticle> = mutableListOf(),
     val pickups: MutableList<ArenaPickup> = mutableListOf(),
+    val platforms: MutableList<MovingPlatform> = mutableListOf(),
+    val lasers: MutableList<LaserBeam> = mutableListOf(),
     var elapsedTime: Float = 0f,
     var endStateCooldown: Float = 0f,
+    var phaseFlashTimer: Float = 0f,
     val groundY: Float = 1260f
 )

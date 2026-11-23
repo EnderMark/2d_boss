@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllNineteenLevels() {
-        assertEquals(19, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyLevels() {
+        assertEquals(20, LevelCatalog.levels.size)
 
         assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
         assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
@@ -34,14 +34,17 @@ class BossBattleEngineTest {
         assertEquals("MARCO DI GOOGLE", LevelCatalog.findById(10).bossName)
         assertEquals("CARAMEL", LevelCatalog.findById(11).bossName)
 
-        // Arcade (Level 1 shooter-style) remixes from Lollo Zurich onward (Levels 12-19)
         for (id in 12..19) {
             assertEquals(BattleMode.SHOOTER, LevelCatalog.findById(id).mode)
         }
-        assertEquals("LOLLO ZURICH", LevelCatalog.findById(12).bossName)
-        assertEquals("CARAMEL", LevelCatalog.findById(19).bossName)
-        assertEquals(70, LevelCatalog.findById(19).bossMaxArmor)
-        assertTrue(LevelCatalog.findById(19).multiPhase)
+        val level20 = LevelCatalog.findById(20)
+        assertEquals("OMEGA ARCHITECT", level20.bossName)
+        assertEquals(ArenaTheme.OMEGA_FINALE, level20.arenaTheme)
+        assertTrue(level20.enablePlatforms)
+        assertTrue(level20.enableLasers)
+        assertTrue(level20.enablePickups)
+        assertTrue(level20.multiPhase)
+        assertEquals(100, level20.bossMaxArmor)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -425,5 +428,54 @@ class BossBattleEngineTest {
         caramel.state.boss.attackCooldown = 0.01f
         caramel.update(0.02f)
         assertTrue(caramel.state.projectiles.any { it.kind == ProjectileKind.HOT_STONE })
+    }
+
+    @Test
+    fun levelTwentyOmegaFinalePlatformsLasersAndPhases() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_20)
+        engine.startGame()
+
+        // Moving platforms initialized and moving
+        assertEquals(2, engine.state.platforms.size)
+        val firstPlat = engine.state.platforms.first()
+        val initialPlatX = firstPlat.x
+        engine.update(0.05f)
+        assertTrue(firstPlat.x != initialPlatX)
+
+        // Player lands on moving platform and resets jumps
+        val player = engine.state.player
+        player.x = firstPlat.x
+        player.y = firstPlat.y - player.radius - 2f
+        player.vy = 180f
+        player.jumpsRemaining = 0
+        engine.update(0.05f)
+        assertTrue(player.onGround)
+        assertEquals(Player.MAX_JUMPS, player.jumpsRemaining)
+
+        // Omega spawns telegraphed laser beam -> activates and emits LASER_FIRE
+        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
+        engine.state.boss.actionTimer = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.lasers.isNotEmpty())
+        val laser = engine.state.lasers.first()
+        assertFalse(laser.isActive)
+
+        repeat(20) { engine.update(0.05f) }
+        assertTrue(engine.drainSoundEvents().contains(com.endermark.bossbattle.model.GameSoundEvent.LASER_FIRE))
+
+        // Phase 3 transition adds 3rd platform and reforges armor
+        engine.state.boss.armor = 0
+        engine.state.boss.phase = 2
+        engine.state.boss.hp = 120
+        engine.state.boss.x = player.x + engine.state.boss.radius + 25f
+        player.y = engine.state.boss.y
+        player.facingDir = 1
+        player.meleeCooldown = 0f
+        engine.triggerMeleeAttack()
+        engine.update(0.016f)
+        assertEquals(3, engine.state.boss.phase)
+        assertEquals(60, engine.state.boss.armor)
+        assertEquals(3, engine.state.platforms.size)
+        assertTrue(engine.state.phaseFlashTimer > 0f)
     }
 }

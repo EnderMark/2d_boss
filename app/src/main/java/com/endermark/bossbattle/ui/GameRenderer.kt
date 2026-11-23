@@ -497,6 +497,7 @@ class GameRenderer {
         when (state.level.arenaTheme) {
             ArenaTheme.HANOI -> drawHanoiBackground(canvas, state)
             ArenaTheme.HANOI_SPA -> drawHanoiSpaBackground(canvas, state)
+            ArenaTheme.OMEGA_FINALE -> drawOmegaFinaleBackground(canvas, state)
             ArenaTheme.ZURICH -> drawZurichBackground(canvas, state)
             ArenaTheme.ZURICH_TAX -> drawZurichTaxBackground(canvas, state)
             ArenaTheme.STUDIO -> drawStudioBackground(canvas, state)
@@ -510,8 +511,10 @@ class GameRenderer {
             drawGroundArena(canvas, state)
         }
 
+        drawMovingPlatforms(canvas, state)
         drawBossHealthBar(canvas, state.boss, state.worldWidth, state.level.multiPhase)
         drawPickups(canvas, state)
+        drawLasers(canvas, state)
         drawProjectiles(canvas, state)
         drawParticles(canvas, state)
 
@@ -519,6 +522,7 @@ class GameRenderer {
             when (state.level.arenaTheme) {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
+                ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.STUDIO -> drawIvanoneBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.ZURICH_TAX -> drawAlessioTaxBoss(canvas, state.boss, state.elapsedTime)
@@ -539,6 +543,15 @@ class GameRenderer {
         } else {
             drawPlayerShip(canvas, state.player, state.elapsedTime)
             drawPlayerHud(canvas, state.player, baseY = state.worldHeight - 76f, showWeaponStatus = false)
+        }
+
+        if (state.phaseFlashTimer > 0f) {
+            val flashAlpha = ((state.phaseFlashTimer / 0.6f).coerceIn(0f, 1f) * 190).toInt()
+            val flashPaint = Paint().apply {
+                color = Color.argb(flashAlpha, 255, 245, 200)
+                style = Paint.Style.FILL
+            }
+            canvas.drawRect(0f, 0f, state.worldWidth, state.worldHeight, flashPaint)
         }
 
         if (state.status != GameStatus.PLAYING) {
@@ -1840,6 +1853,196 @@ class GameRenderer {
                 val sx = x + (kotlin.math.cos(angle.toDouble()) * 42f).toFloat()
                 val sy = headY - 42f + (sin(angle.toDouble()) * 10f).toFloat()
                 canvas.drawCircle(sx, sy, 8f, hanoiLanternGoldPaint)
+            }
+        }
+    }
+
+    private fun drawOmegaFinaleBackground(canvas: Canvas, state: GameState) {
+        val phase = state.boss.phase
+        val colors = when (phase) {
+            1 -> intArrayOf(
+                Color.parseColor("#0B0C22"),
+                Color.parseColor("#1D1B4B"),
+                Color.parseColor("#0E4A6B")
+            )
+            2 -> intArrayOf(
+                Color.parseColor("#1A080C"),
+                Color.parseColor("#5C1414"),
+                Color.parseColor("#B83B18")
+            )
+            else -> intArrayOf(
+                Color.parseColor("#140B24"),
+                Color.parseColor("#4A2B0E"),
+                Color.parseColor("#C78D1E")
+            )
+        }
+        skyGradientPaint.shader = LinearGradient(0f, 0f, 0f, state.groundY, colors, null, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, state.worldWidth, state.groundY, skyGradientPaint)
+        skyGradientPaint.shader = null
+
+        val cx = state.worldWidth * 0.5f
+        val cy = 540f
+        when (phase) {
+            1 -> {
+                // Scenario 1: Cyber Citadel
+                drawArenaGrid(canvas, state.worldWidth, state.groundY)
+                canvas.drawRect(60f, state.groundY - 290f, 220f, state.groundY, studioBuildingPaint)
+                canvas.drawRect(780f, state.groundY - 340f, 940f, state.groundY, studioBuildingPaint)
+                canvas.drawCircle(cx, cy, 130f + sin(state.elapsedTime * 3f) * 10f, controlBorderPaint)
+                canvas.drawText("CYBER CITADEL", cx, 360f, controlLabelPaint)
+            }
+            2 -> {
+                // Scenario 2: Vulcano Cosmico
+                canvas.drawCircle(cx, cy, 145f, hanoiLanternRedPaint)
+                canvas.drawCircle(cx, cy, 118f, studioBuildingPaint)
+                tempPath.reset()
+                tempPath.moveTo(0f, state.groundY)
+                tempPath.lineTo(200f, state.groundY - 340f)
+                tempPath.lineTo(420f, state.groundY - 120f)
+                tempPath.lineTo(660f, state.groundY - 390f)
+                tempPath.lineTo(state.worldWidth, state.groundY - 180f)
+                tempPath.lineTo(state.worldWidth, state.groundY)
+                tempPath.close()
+                canvas.drawPath(tempPath, studioBuildingPaint)
+                canvas.drawText("VULCANO COSMICO", cx, 360f, controlLabelPaint)
+            }
+            else -> {
+                // Scenario 3: Singolarita Omega
+                for (i in 1..3) {
+                    val r = 90f * i + sin(state.elapsedTime * 5f + i) * 14f
+                    canvas.drawCircle(cx, cy, r, shieldAuraPaint)
+                }
+                canvas.drawCircle(cx, cy, 55f, hanoiLanternGoldPaint)
+                canvas.drawText("SINGOLARITÀ OMEGA", cx, 360f, controlLabelPaint)
+            }
+        }
+    }
+
+    private fun drawMovingPlatforms(canvas: Canvas, state: GameState) {
+        for (platform in state.platforms) {
+            val halfW = platform.width / 2f
+            val left = platform.x - halfW
+            val right = platform.x + halfW
+            val top = platform.y
+            val bottom = platform.y + platform.height
+
+            tempRect.set(left, top, right, bottom)
+            canvas.drawRoundRect(tempRect, 10f, 10f, controlBgPaint)
+            val borderPaint = when (state.boss.phase) {
+                2 -> controlAttackBorderPaint
+                3 -> controlShieldBorderPaint
+                else -> controlBorderPaint
+            }
+            canvas.drawRoundRect(tempRect, 10f, 10f, borderPaint)
+
+            // Glowing underside hover thrusters
+            canvas.drawCircle(left + 26f, bottom + 6f, 6f, hanoiLanternGoldPaint)
+            canvas.drawCircle(right - 26f, bottom + 6f, 6f, hanoiLanternGoldPaint)
+        }
+    }
+
+    private fun drawLasers(canvas: Canvas, state: GameState) {
+        val warnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(180, 255, 82, 82)
+            style = Paint.Style.STROKE
+            strokeWidth = 8f
+        }
+        val outerBeamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(190, 255, 23, 68)
+            style = Paint.Style.FILL
+        }
+        val midBeamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(230, 255, 213, 79)
+            style = Paint.Style.FILL
+        }
+
+        for (laser in state.lasers) {
+            if (laser.telegraphTimer > 0f) {
+                val pulse = 4f + 4f * sin(state.elapsedTime * 30f)
+                warnPaint.strokeWidth = pulse.coerceAtLeast(3f)
+                if (laser.isHorizontal) {
+                    canvas.drawLine(0f, laser.position, state.worldWidth, laser.position, warnPaint)
+                } else {
+                    canvas.drawLine(laser.position, 0f, laser.position, state.groundY, warnPaint)
+                }
+            } else if (laser.isActive) {
+                val halfT = laser.thickness / 2f
+                if (laser.isHorizontal) {
+                    canvas.drawRect(0f, laser.position - halfT, state.worldWidth, laser.position + halfT, outerBeamPaint)
+                    canvas.drawRect(0f, laser.position - halfT * 0.6f, state.worldWidth, laser.position + halfT * 0.6f, midBeamPaint)
+                    canvas.drawRect(0f, laser.position - halfT * 0.25f, state.worldWidth, laser.position + halfT * 0.25f, swissCrossWhitePaint)
+                } else {
+                    canvas.drawRect(laser.position - halfT, 0f, laser.position + halfT, state.groundY, outerBeamPaint)
+                    canvas.drawRect(laser.position - halfT * 0.6f, 0f, laser.position + halfT * 0.6f, state.groundY, midBeamPaint)
+                    canvas.drawRect(laser.position - halfT * 0.25f, 0f, laser.position + halfT * 0.25f, state.groundY, swissCrossWhitePaint)
+                }
+            }
+        }
+    }
+
+    private fun drawOmegaBoss(canvas: Canvas, boss: Boss, elapsedTime: Float) {
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isTelegraphing = boss.action == BossAction.TELEGRAPH_SHOCKWAVE ||
+            boss.action == BossAction.TELEGRAPH_CHARGE
+
+        if (isTelegraphing) {
+            canvas.drawCircle(x, y, r * (1.30f + 0.14f * sin(elapsedTime * 22f)), bossTelegraphPaint)
+        }
+
+        // Armor barrier when armor > 0
+        if (boss.hasArmor) {
+            val armorRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(190, 38, 198, 218)
+                style = Paint.Style.STROKE
+                strokeWidth = 12f
+            }
+            canvas.drawCircle(x, y, r * 1.35f, armorRingPaint)
+            canvas.drawCircle(x, y, r * 1.20f, shieldAuraPaint)
+        }
+
+        // Orbiting cosmic energy nodes
+        for (i in 0..3) {
+            val angle = elapsedTime * (2.5f + boss.phase) + i * (Math.PI / 2.0)
+            val ox = x + (kotlin.math.cos(angle) * r * 1.12f).toFloat()
+            val oy = y + (sin(angle) * r * 0.65f).toFloat()
+            canvas.drawCircle(ox, oy, 11f, hanoiLanternGoldPaint)
+        }
+
+        // Armored cosmic body
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            boss.phase == 3 -> Color.parseColor("#FFB300")
+            boss.phase == 2 -> Color.parseColor("#C62828")
+            else -> Color.parseColor("#283593")
+        }
+        tempPath.reset()
+        tempPath.moveTo(x, y - r * 1.10f)
+        tempPath.lineTo(x + r * 0.85f, y - r * 0.35f)
+        tempPath.lineTo(x + r * 0.68f, y + r * 0.92f)
+        tempPath.lineTo(x - r * 0.68f, y + r * 0.92f)
+        tempPath.lineTo(x - r * 0.85f, y - r * 0.35f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossArmorPaint)
+        canvas.drawPath(tempPath, controlShieldBorderPaint)
+
+        // Radiant inner core
+        bossCorePaint.color = when {
+            isHit -> Color.WHITE
+            boss.phase == 3 -> Color.WHITE
+            boss.phase == 2 -> Color.parseColor("#FFAB00")
+            else -> Color.parseColor("#00E5FF")
+        }
+        canvas.drawCircle(x, y, r * 0.36f, bossCorePaint)
+
+        if (boss.isStunned) {
+            for (i in 0..2) {
+                val angle = elapsedTime * 6f + i * 2.1f
+                val sx = x + (kotlin.math.cos(angle.toDouble()) * 46f).toFloat()
+                val sy = y - r - 20f + (sin(angle.toDouble()) * 10f).toFloat()
+                canvas.drawCircle(sx, sy, 9f, hanoiLanternGoldPaint)
             }
         }
     }

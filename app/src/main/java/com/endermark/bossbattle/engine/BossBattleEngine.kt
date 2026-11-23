@@ -10,7 +10,9 @@ import com.endermark.bossbattle.model.GameSoundEvent
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.HitParticle
+import com.endermark.bossbattle.model.LaserBeam
 import com.endermark.bossbattle.model.LevelCatalog
+import com.endermark.bossbattle.model.MovingPlatform
 import com.endermark.bossbattle.model.PickupKind
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
@@ -148,12 +150,19 @@ class BossBattleEngine(
         state.projectiles.clear()
         state.particles.clear()
         state.pickups.clear()
+        state.platforms.clear()
+        state.lasers.clear()
+        state.phaseFlashTimer = 0f
         pendingSoundEvents.clear()
         moveInput = 0
         nextMeleeBossAttackIsCharge = false
         complaintIndex = 0
         pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY
         pickupSequenceIndex = 0
+
+        if (level.enablePlatforms) {
+            populateInitialPlatforms()
+        }
 
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
             state.player.apply {
@@ -242,6 +251,9 @@ class BossBattleEngine(
     fun update(dtSeconds: Float) {
         val dt = dtSeconds.coerceIn(0f, MAX_DT)
         state.elapsedTime += dt
+        if (state.phaseFlashTimer > 0f) {
+            state.phaseFlashTimer = max(0f, state.phaseFlashTimer - dt)
+        }
         updateParticles(dt)
         updateDisplayedBossHp(dt)
 
@@ -252,6 +264,9 @@ class BossBattleEngine(
             return
         }
 
+        if (level.enablePlatforms) {
+            updatePlatforms(dt)
+        }
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
             updateMeleePlayer(dt)
             updateMeleeBoss(dt)
@@ -261,6 +276,9 @@ class BossBattleEngine(
         }
         if (level.enablePickups) {
             updatePickups(dt)
+        }
+        if (level.enableLasers) {
+            updateLasers(dt)
         }
         updateProjectiles(dt)
         resolveCollisions()
@@ -299,21 +317,45 @@ class BossBattleEngine(
             player.facingDir = moveInput
         }
 
+        val prevBottom = player.y + player.radius
         player.vy += GRAVITY * dt
         player.x += player.vx * dt
         player.y += player.vy * dt
 
         val margin = player.radius + ARENA_PADDING
+        var landedOnPlatform = false
+
+        // One-way landing on moving platforms when falling
+        if (player.vy >= 0f && state.platforms.isNotEmpty()) {
+            val newBottom = player.y + player.radius
+            for (platform in state.platforms) {
+                val halfW = platform.width / 2f
+                val withinX = player.x + player.radius * 0.5f >= platform.x - halfW &&
+                    player.x - player.radius * 0.5f <= platform.x + halfW
+                if (withinX && prevBottom <= platform.y + 14f && newBottom >= platform.y) {
+                    player.y = platform.y - player.radius
+                    player.x += platform.vx * dt
+                    player.vy = 0f
+                    player.onGround = true
+                    player.jumpsRemaining = Player.MAX_JUMPS
+                    landedOnPlatform = true
+                    break
+                }
+            }
+        }
+
         player.x = player.x.coerceIn(margin, state.worldWidth - margin)
 
-        val floorY = state.groundY - player.radius
-        if (player.y >= floorY) {
-            player.y = floorY
-            player.vy = 0f
-            player.onGround = true
-            player.jumpsRemaining = Player.MAX_JUMPS
-        } else {
-            player.onGround = false
+        if (!landedOnPlatform) {
+            val floorY = state.groundY - player.radius
+            if (player.y >= floorY) {
+                player.y = floorY
+                player.vy = 0f
+                player.onGround = true
+                player.jumpsRemaining = Player.MAX_JUMPS
+            } else {
+                player.onGround = false
+            }
         }
 
         if (player.invulnerableTimer > 0f) {
@@ -593,6 +635,10 @@ class BossBattleEngine(
                             emitSound(GameSoundEvent.BOSS_ATTACK)
                             spawnCaramelSpaAttack()
                         }
+                        ArenaTheme.OMEGA_FINALE -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnOmegaOrbAndLaserAttack()
+                        }
                         else -> {
                             emitSound(GameSoundEvent.BOSS_ATTACK)
                             spawnGroundShockwaves()
@@ -821,6 +867,24 @@ class BossBattleEngine(
                 }
             }
         }
+        // Active Laser Beam collision vs Player
+        if (state.lasers.isNotEmpty() && !player.isInvulnerable) {
+            for (laser in state.lasers) {
+                if (!laser.isActive) continue
+                val hit = if (laser.isHorizontal) {
+                    abs(player.y - laser.position) <= player.radius * 0.75f + laser.thickness * 0.45f
+                } else {
+                    abs(player.x - laser.position) <= player.radius * 0.75f + laser.thickness * 0.45f
+                }
+                if (hit) {
+                    applyDamageToPlayer(1)
+                    if (state.status != GameStatus.PLAYING) {
+                        return
+                    }
+                    break
+                }
+            }
+        }
     }
 
     private fun applyDamageToBoss(
@@ -856,6 +920,7 @@ class BossBattleEngine(
             state.endStateCooldown = END_STATE_COOLDOWN
             state.projectiles.clear()
             state.pickups.clear()
+            state.lasers.clear()
             emitSound(GameSoundEvent.VICTORY)
             spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 24)
             return
@@ -863,20 +928,43 @@ class BossBattleEngine(
 
         emitSound(GameSoundEvent.BOSS_HIT)
 
-        // Multi-phase transitions (Level 11 Caramel): reforge armor at Phase 2 (66%) and Phase 3 (33%)
+        // Multi-phase transitions: reforge armor at Phase 2 (66%) and Phase 3 (33%)
         if (level.multiPhase) {
+            val isOmega = level.arenaTheme == ArenaTheme.OMEGA_FINALE
             if (boss.phase == 1 && boss.hpRatio <= 0.66f) {
                 boss.phase = 2
-                boss.armor = 50
-                boss.maxArmor = 50
+                val newArmor = if (isOmega) 70 else 50
+                boss.armor = newArmor
+                boss.maxArmor = newArmor
                 boss.stunTimer = 0f
+                if (isOmega) {
+                    state.phaseFlashTimer = 0.5f
+                    state.lasers.clear()
+                }
                 emitSound(GameSoundEvent.BOSS_CHARGE)
                 spawnHitParticles(boss.x, boss.y, color = COLOR_ARMOR_SPARK, count = 18)
             } else if (boss.phase == 2 && boss.hpRatio <= 0.33f) {
                 boss.phase = 3
-                boss.armor = 40
-                boss.maxArmor = 40
+                val newArmor = if (isOmega) 60 else 40
+                boss.armor = newArmor
+                boss.maxArmor = newArmor
                 boss.stunTimer = 0f
+                if (isOmega) {
+                    state.phaseFlashTimer = 0.6f
+                    state.lasers.clear()
+                    if (state.platforms.size < 3) {
+                        state.platforms.add(
+                            MovingPlatform(
+                                x = state.worldWidth * 0.5f,
+                                y = 700f,
+                                width = 210f,
+                                vx = 180f,
+                                minX = 180f,
+                                maxX = state.worldWidth - 180f
+                            )
+                        )
+                    }
+                }
                 emitSound(GameSoundEvent.BOSS_CHARGE)
                 spawnHitParticles(boss.x, boss.y, color = COLOR_VICTORY_SPARK, count = 20)
             }
@@ -1411,6 +1499,127 @@ class BossBattleEngine(
         }
     }
 
+    private fun populateInitialPlatforms() {
+        state.platforms.clear()
+        state.platforms.add(
+            MovingPlatform(
+                x = state.worldWidth * 0.32f,
+                y = 1045f,
+                width = 230f,
+                vx = 135f,
+                minX = 165f,
+                maxX = state.worldWidth - 165f
+            )
+        )
+        state.platforms.add(
+            MovingPlatform(
+                x = state.worldWidth * 0.68f,
+                y = 855f,
+                width = 220f,
+                vx = -155f,
+                minX = 165f,
+                maxX = state.worldWidth - 165f
+            )
+        )
+    }
+
+    private fun updatePlatforms(dt: Float) {
+        val phaseSpeedBoost = when (state.boss.phase) {
+            1 -> 1.0f
+            2 -> 1.25f
+            else -> 1.45f
+        }
+        for (platform in state.platforms) {
+            platform.x += platform.vx * phaseSpeedBoost * dt
+            if (platform.x <= platform.minX) {
+                platform.x = platform.minX
+                platform.vx = abs(platform.vx)
+            } else if (platform.x >= platform.maxX) {
+                platform.x = platform.maxX
+                platform.vx = -abs(platform.vx)
+            }
+        }
+    }
+
+    private fun updateLasers(dt: Float) {
+        val iterator = state.lasers.iterator()
+        while (iterator.hasNext()) {
+            val laser = iterator.next()
+            if (laser.telegraphTimer > 0f) {
+                laser.telegraphTimer = max(0f, laser.telegraphTimer - dt)
+                if (laser.telegraphTimer <= 0f && !laser.firedSound) {
+                    laser.firedSound = true
+                    emitSound(GameSoundEvent.LASER_FIRE)
+                }
+            } else {
+                laser.activeTimer -= dt
+                if (laser.activeTimer <= 0f) {
+                    iterator.remove()
+                }
+            }
+        }
+    }
+
+    private fun spawnOmegaOrbAndLaserAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.phase >= 2) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val orbAngles = when (boss.phase) {
+            1 -> listOf(baseAngle - 0.16, baseAngle + 0.16)
+            2 -> listOf(baseAngle - 0.24, baseAngle, baseAngle + 0.24)
+            else -> listOf(baseAngle - 0.30, baseAngle - 0.10, baseAngle + 0.10, baseAngle + 0.30)
+        }
+        for (angle in orbAngles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x,
+                    y = boss.y - 12f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 20f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.BOSS_ORB
+                )
+            )
+        }
+
+        // Telegraphed Laser Beams escalating per phase!
+        state.lasers.add(
+            LaserBeam(
+                isHorizontal = true,
+                position = state.groundY - 46f,
+                thickness = 46f,
+                telegraphTimer = if (boss.phase >= 3) 0.65f else 0.80f,
+                activeTimer = 0.52f
+            )
+        )
+        if (boss.phase >= 2) {
+            state.lasers.add(
+                LaserBeam(
+                    isHorizontal = false,
+                    position = player.x.coerceIn(120f, state.worldWidth - 120f),
+                    thickness = 44f,
+                    telegraphTimer = 0.78f,
+                    activeTimer = 0.50f
+                )
+            )
+        }
+        if (boss.phase >= 3) {
+            val secondX = (state.worldWidth - player.x).coerceIn(140f, state.worldWidth - 140f)
+            state.lasers.add(
+                LaserBeam(
+                    isHorizontal = false,
+                    position = secondX,
+                    thickness = 42f,
+                    telegraphTimer = 0.72f,
+                    activeTimer = 0.50f
+                )
+            )
+        }
+    }
+
     private fun spawnGroundShockwaves() {
         val boss = state.boss
         val speed = if (boss.isEnraged) {
@@ -1498,6 +1707,7 @@ class BossBattleEngine(
         val bossRadius = when (level.arenaTheme) {
             ArenaTheme.HANOI -> 64f
             ArenaTheme.HANOI_SPA -> 68f
+            ArenaTheme.OMEGA_FINALE -> 82f
             ArenaTheme.ZURICH -> 66f
             ArenaTheme.STUDIO -> 74f
             ArenaTheme.ZURICH_TAX -> 68f
