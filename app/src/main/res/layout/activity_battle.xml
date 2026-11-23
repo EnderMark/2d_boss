@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/battleRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0F1A">
+
+    <FrameLayout
+        android:id="@+id/gameContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Compact floating Audio toggle button in top-right -->
+    <Button
+        android:id="@+id/audioOverlayButton"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_level_card"
+        android:minWidth="0dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/audio_button_label"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- In-battle Audio Controls Popup -->
+    <LinearLayout
+        android:id="@+id/audioOverlayPanel"
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="52dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_level_card"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/battleVolumeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/battleVolumeSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:max="100" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/battleMusicSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/audio_music_label"
+            android:textColor="#CFD8DC"
+            android:textSize="14sp" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/battleSfxSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/audio_sfx_label"
+            android:textColor="#CFD8DC"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/audioCloseButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_play_button"
+            android:text="@string/audio_close_label"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</FrameLayout>

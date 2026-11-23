@@ -34,9 +34,13 @@ enum class GameSoundEvent {
     JUMP,
     DOUBLE_JUMP,
     ATTACK,
+    PLAYER_SHOT,
     BOSS_HIT,
     PLAYER_HIT,
     SHIELD_BLOCK,
+    BOSS_ATTACK,
+    BOSS_CHARGE,
+    BOSS_VANISH,
     CAMERA_SHUTTER,
     VICTORY,
     DEFEAT

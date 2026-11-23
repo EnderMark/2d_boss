@@ -4,10 +4,12 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.endermark.bossbattle.audio.AudioSettings
 import com.endermark.bossbattle.audio.SoundManager
 import com.endermark.bossbattle.engine.BossBattleEngine
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.BossLevel
+import com.endermark.bossbattle.model.GameSoundEvent
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.LevelCatalog
 import kotlin.math.min
@@ -15,12 +17,17 @@ import kotlin.math.min
 class GameSurfaceView(
     context: Context,
     private val level: BossLevel = LevelCatalog.LEVEL_1,
+    private val audioSettings: AudioSettings = AudioSettings(context),
     private val onExitToMenu: () -> Unit = {}
 ) : SurfaceView(context), SurfaceHolder.Callback {
 
     private val engine = BossBattleEngine(level = level)
     private val renderer = GameRenderer()
-    private val soundManager = SoundManager()
+    private val soundManager = SoundManager(
+        initialVolume = audioSettings.masterVolume,
+        initialMusicEnabled = audioSettings.musicEnabled,
+        initialSfxEnabled = audioSettings.sfxEnabled
+    )
     private val stateLock = Any()
 
     @Volatile
@@ -32,8 +39,17 @@ class GameSurfaceView(
         isFocusable = true
     }
 
+    fun refreshAudioSettings() {
+        soundManager.applySettings(audioSettings)
+    }
+
+    fun playTestSfx() {
+        soundManager.play(GameSoundEvent.SHIELD_BLOCK)
+    }
+
     override fun surfaceCreated(holder: SurfaceHolder) {
-        soundManager.startMusic()
+        soundManager.applySettings(audioSettings)
+        soundManager.start()
         startLoop()
     }
 
@@ -42,19 +58,20 @@ class GameSurfaceView(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        soundManager.stopMusic()
+        soundManager.stop()
         stopLoop()
     }
 
     fun resumeGame() {
-        soundManager.startMusic()
+        soundManager.applySettings(audioSettings)
+        soundManager.start()
         if (holder.surface.isValid) {
             startLoop()
         }
     }
 
     fun pauseGame() {
-        soundManager.stopMusic()
+        soundManager.stop()
         stopLoop()
     }
 
@@ -91,7 +108,7 @@ class GameSurfaceView(
             }
         }
         if (exitRequested) {
-            soundManager.stopMusic()
+            soundManager.stop()
             post { onExitToMenu() }
         }
         return true

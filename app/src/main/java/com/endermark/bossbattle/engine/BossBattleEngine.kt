@@ -385,15 +385,39 @@ class BossBattleEngine(
                 boss.actionTimer -= dt
                 if (boss.actionTimer <= 0f) {
                     when (level.arenaTheme) {
-                        ArenaTheme.HANOI -> spawnChanLanternAttack()
-                        ArenaTheme.ZURICH -> spawnLolloComplaintAttack()
-                        ArenaTheme.STUDIO -> spawnIvanoneDroneAttack()
-                        ArenaTheme.ZURICH_TAX -> spawnAlessioTaxAttack()
-                        ArenaTheme.PARIS -> spawnLouiseSeductionAttack()
-                        ArenaTheme.UBS_ALPS -> spawnDaisyScreamAttack()
-                        ArenaTheme.GYM_DEV -> spawnAndreaRiceAndDevAttack()
+                        ArenaTheme.HANOI -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnChanLanternAttack()
+                        }
+                        ArenaTheme.ZURICH -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnLolloComplaintAttack()
+                        }
+                        ArenaTheme.STUDIO -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnIvanoneDroneAttack()
+                        }
+                        ArenaTheme.ZURICH_TAX -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnAlessioTaxAttack()
+                        }
+                        ArenaTheme.PARIS -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnLouiseSeductionAttack()
+                        }
+                        ArenaTheme.UBS_ALPS -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnDaisyScreamAttack()
+                        }
+                        ArenaTheme.GYM_DEV -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnAndreaRiceAndDevAttack()
+                        }
                         ArenaTheme.GOOGLE_ZURICH -> spawnMarcoPorscheAttack()
-                        else -> spawnGroundShockwaves()
+                        else -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
+                            spawnGroundShockwaves()
+                        }
                     }
                     boss.action = BossAction.PATROL
                     boss.attackCooldown = if (boss.isEnraged) {
@@ -410,10 +434,12 @@ class BossBattleEngine(
                 if (boss.actionTimer <= 0f) {
                     when (level.arenaTheme) {
                         ArenaTheme.STUDIO -> {
+                            emitSound(GameSoundEvent.CAMERA_SHUTTER)
                             spawnIvanoneCameraAttack()
                             triggerBossVanish()
                         }
                         ArenaTheme.ZURICH_TAX -> {
+                            emitSound(GameSoundEvent.BOSS_ATTACK)
                             spawnAlessioWeirdToothAttack()
                             boss.action = BossAction.PATROL
                             boss.attackCooldown = if (boss.isEnraged) {
@@ -423,7 +449,7 @@ class BossBattleEngine(
                             }
                         }
                         ArenaTheme.PARIS -> {
-                            // Louise dodges away / darts across to avoid you, leaving a teasing heart
+                            emitSound(GameSoundEvent.BOSS_CHARGE)
                             spawnLouiseTeaseHeart()
                             val awayDir = if (player.x >= boss.x) -1 else 1
                             val nearEdge = (awayDir < 0 && boss.x < state.worldWidth * 0.30f) ||
@@ -433,6 +459,7 @@ class BossBattleEngine(
                             boss.actionTimer = 0.52f
                         }
                         else -> {
+                            emitSound(GameSoundEvent.BOSS_CHARGE)
                             boss.action = BossAction.CHARGING
                             boss.actionTimer = 0.65f
                         }
@@ -480,6 +507,7 @@ class BossBattleEngine(
         boss.vanishTimer = if (boss.isEnraged) IVANONE_ENRAGED_VANISH_DURATION else IVANONE_VANISH_DURATION
         boss.action = BossAction.PATROL
         boss.hitsSinceVanish = 0
+        emitSound(GameSoundEvent.BOSS_VANISH)
         spawnHitParticles(boss.x, boss.y, COLOR_VANISH_SMOKE, 14)
     }
 
@@ -641,6 +669,7 @@ class BossBattleEngine(
 
     private fun spawnPlayerShot() {
         val player = state.player
+        emitSound(GameSoundEvent.PLAYER_SHOT)
         state.projectiles.add(
             Projectile(
                 x = player.x,
@@ -658,6 +687,7 @@ class BossBattleEngine(
     private fun spawnBossAttack() {
         val boss = state.boss
         val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
         val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
 
         val angles = if (boss.isEnraged) {

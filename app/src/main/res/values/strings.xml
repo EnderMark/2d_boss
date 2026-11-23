@@ -6,4 +6,9 @@
     <string name="menu_more_levels_soon">Altri livelli e boss in arrivo...</string>
     <string name="play_level">Gioca</string>
     <string name="boss_hp_format">%1$d HP</string>
+    <string name="audio_volume_format">Volume: %1$d%%</string>
+    <string name="audio_music_label">Musica</string>
+    <string name="audio_sfx_label">Effetti (SFX)</string>
+    <string name="audio_button_label">Audio</string>
+    <string name="audio_close_label">Chiudi</string>
 </resources>
