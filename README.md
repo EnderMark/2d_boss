@@ -16,6 +16,7 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **
 - **Livello 9 — `ANDREA DATTERO`**: Magrissimo con felpa **MOSCHINO**, tenta il grappling ravvicinato, lancia ciotole da **200g di riso e pollo** e si vanta di essere un 10x software engineer (tra crash e bug).
 - **Livello 10 — `MARCO DI GOOGLE`**: Sfreccia in **Porsche bianca** davanti al Google Campus, cerca di fare dating ripetendo `"SONO PIENO DI MILIONI!"` e scatta foto con flash fotografici dal finestrino.
 - **Livello 11 — `CARAMEL` (Hanoi Spa)**: Boss fight avanzata a **3 fasi** contro la massaggiatrice di Hanoi, con **armatura da spezzare** (stordimento ad ogni rottura), **armi raccoglibili** (`MARTELLO` spacca-armatura, `KATANA` rapida, `LANCIA` con onda d'energia) e **power-up** (`+1 VITA`, `VELOCITÀ`, `FURIA x2`).
+- **Livelli 12–19 — Modalità `ARCADE` (stile Livello 1 / Arkanoid)**: ripropongono tutti i boss da **Lollo Zurich** fino a **Caramel** in versione navicella dall'alto verso il basso, ciascuno con i propri attacchi a tema (lamentele, droni/flash/sparizioni, tasse & strano dente, cuori & schivate, urla UBS, riso & pollo, Porsche & milioni, pietre calde a 3 fasi con armatura).
 - **Controlli Audio**: barra volume e toggle separati per **Musica** ed **Effetti (SFX)** disponibili sia nel menù livelli sia in battaglia.
 
 ## Build e Test

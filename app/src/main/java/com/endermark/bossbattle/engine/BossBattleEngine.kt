@@ -222,6 +222,10 @@ class BossBattleEngine(
                 y = BOSS_TOP_OFFSET
                 hp = maxHp
                 displayedHp = maxHp.toFloat()
+                armor = level.bossMaxArmor
+                maxArmor = level.bossMaxArmor
+                phase = 1
+                stunTimer = 0f
                 velocityX = level.bossBaseSpeed
                 attackCooldown = 0.9f
                 hitFlashTimer = 0f
@@ -340,15 +344,44 @@ class BossBattleEngine(
 
     private fun updateShooterBoss(dt: Float) {
         val boss = state.boss
+        val player = state.player
         if (boss.hitFlashTimer > 0f) {
             boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
         }
 
-        val speedMultiplier = if (boss.isEnraged) BOSS_ENRAGED_SPEED_MULTIPLIER else 1f
-        boss.x += boss.velocityX * speedMultiplier * dt
+        // Armor Break stun window (Level 19 Caramel)
+        if (boss.stunTimer > 0f) {
+            boss.stunTimer = max(0f, boss.stunTimer - dt)
+            return
+        }
 
         val minX = boss.radius + ARENA_PADDING
         val maxX = state.worldWidth - boss.radius - ARENA_PADDING
+
+        // Vanish & reappear across the top (Level 13 Ivanone)
+        if (boss.vanishTimer > 0f) {
+            boss.vanishTimer = max(0f, boss.vanishTimer - dt)
+            if (boss.vanishTimer <= 0f) {
+                boss.x = if (player.x < state.worldWidth / 2f) {
+                    (state.worldWidth * 0.78f).coerceIn(minX, maxX)
+                } else {
+                    (state.worldWidth * 0.22f).coerceIn(minX, maxX)
+                }
+                boss.attackCooldown = 0.55f
+                spawnHitParticles(boss.x, boss.y, COLOR_VANISH_SMOKE, 12)
+            }
+            return
+        }
+
+        val speedMultiplier = if (boss.isEnraged) BOSS_ENRAGED_SPEED_MULTIPLIER else 1f
+        if (level.arenaTheme == ArenaTheme.PARIS && abs(player.x - boss.x) < 120f) {
+            // Louise dodges away from player's vertical line of fire!
+            val awayDir = if (player.x >= boss.x) -1f else 1f
+            boss.velocityX = awayDir * abs(boss.velocityX)
+        }
+        boss.x += boss.velocityX * speedMultiplier * dt
+        boss.facingDir = if (boss.velocityX >= 0f) 1 else -1
+
         if (boss.x <= minX) {
             boss.x = minX
             boss.velocityX = abs(boss.velocityX)
@@ -359,12 +392,88 @@ class BossBattleEngine(
 
         boss.attackCooldown -= dt
         if (boss.attackCooldown <= 0f) {
-            spawnBossAttack()
+            spawnThemedShooterBossAttack()
             boss.attackCooldown = if (boss.isEnraged) {
                 level.bossEnragedAttackInterval
             } else {
                 level.bossAttackInterval
             }
+        }
+    }
+
+    private fun spawnThemedShooterBossAttack() {
+        when (level.arenaTheme) {
+            ArenaTheme.ZURICH -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                spawnLolloComplaintAttack()
+            }
+            ArenaTheme.STUDIO -> {
+                if (nextMeleeBossAttackIsCharge) {
+                    emitSound(GameSoundEvent.CAMERA_SHUTTER)
+                    spawnIvanoneCameraAttack()
+                    triggerBossVanish()
+                } else {
+                    emitSound(GameSoundEvent.BOSS_ATTACK)
+                    spawnIvanoneShooterDroneAttack()
+                }
+                nextMeleeBossAttackIsCharge = !nextMeleeBossAttackIsCharge
+            }
+            ArenaTheme.ZURICH_TAX -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                if (nextMeleeBossAttackIsCharge) {
+                    spawnAlessioWeirdToothAttack()
+                } else {
+                    spawnAlessioTaxAttack()
+                }
+                nextMeleeBossAttackIsCharge = !nextMeleeBossAttackIsCharge
+            }
+            ArenaTheme.PARIS -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                spawnLouiseSeductionAttack()
+            }
+            ArenaTheme.UBS_ALPS -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                spawnDaisyScreamAttack()
+            }
+            ArenaTheme.GYM_DEV -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                spawnAndreaRiceAndDevAttack()
+            }
+            ArenaTheme.GOOGLE_ZURICH -> {
+                spawnMarcoPorscheAttack()
+            }
+            ArenaTheme.HANOI_SPA -> {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                spawnCaramelSpaAttack()
+            }
+            else -> spawnBossAttack()
+        }
+    }
+
+    private fun spawnIvanoneShooterDroneAttack() {
+        val boss = state.boss
+        val player = state.player
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2(player.y - boss.y, player.x - boss.x).toDouble()
+        val angles = if (boss.isEnraged) {
+            listOf(baseAngle - 0.20, baseAngle, baseAngle + 0.20)
+        } else {
+            listOf(baseAngle - 0.12, baseAngle + 0.12)
+        }
+        spawnHitParticles(boss.x, boss.y + 20f, COLOR_PLAYER_HIT_SPARK, 8)
+        for (angle in angles) {
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x,
+                    y = boss.y + boss.radius * 0.5f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 22f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.DRONE
+                )
+            )
         }
     }
 
@@ -773,10 +882,15 @@ class BossBattleEngine(
             }
         }
 
-        // Ivanone vanishes easily after taking 2 hits!
+        // Ivanone vanishes easily (every 2 melee hits, or every 5 rapid shooter bolts)!
         if (level.arenaTheme == ArenaTheme.STUDIO) {
+            val threshold = if (level.mode == BattleMode.SHOOTER) {
+                IVANONE_SHOOTER_HITS_BEFORE_VANISH
+            } else {
+                IVANONE_HITS_BEFORE_VANISH
+            }
             boss.hitsSinceVanish += 1
-            if (boss.hitsSinceVanish >= IVANONE_HITS_BEFORE_VANISH) {
+            if (boss.hitsSinceVanish >= threshold) {
                 triggerBossVanish()
             }
         }
@@ -1292,7 +1406,7 @@ class BossBattleEngine(
                 )
             )
         }
-        if (boss.phase >= 3) {
+        if (boss.phase >= 3 && level.mode == BattleMode.MELEE_PLATFORMER) {
             spawnGroundShockwaves()
         }
     }
@@ -1473,6 +1587,7 @@ class BossBattleEngine(
         private const val SPREAD_ANGLE_RAD = 0.28
 
         private const val IVANONE_HITS_BEFORE_VANISH = 2
+        private const val IVANONE_SHOOTER_HITS_BEFORE_VANISH = 5
         private const val IVANONE_VANISH_DURATION = 0.72f
         private const val IVANONE_ENRAGED_VANISH_DURATION = 0.55f
 

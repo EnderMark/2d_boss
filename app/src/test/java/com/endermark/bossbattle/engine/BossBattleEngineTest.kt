@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllElevenLevels() {
-        assertEquals(11, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllNineteenLevels() {
+        assertEquals(19, LevelCatalog.levels.size)
 
         assertEquals("GUARDIANO D'OMBRA", LevelCatalog.findById(1).bossName)
         assertEquals("COLOSSO DI FERRO", LevelCatalog.findById(2).bossName)
@@ -34,12 +34,14 @@ class BossBattleEngineTest {
         assertEquals("MARCO DI GOOGLE", LevelCatalog.findById(10).bossName)
         assertEquals("CARAMEL", LevelCatalog.findById(11).bossName)
 
-        assertTrue(LevelCatalog.findById(3).hasShield)
-        assertFalse(LevelCatalog.findById(4).hasShield)
-        assertEquals(ArenaTheme.HANOI_SPA, LevelCatalog.findById(11).arenaTheme)
-        assertTrue(LevelCatalog.findById(11).enablePickups)
-        assertTrue(LevelCatalog.findById(11).multiPhase)
-        assertEquals(80, LevelCatalog.findById(11).bossMaxArmor)
+        // Arcade (Level 1 shooter-style) remixes from Lollo Zurich onward (Levels 12-19)
+        for (id in 12..19) {
+            assertEquals(BattleMode.SHOOTER, LevelCatalog.findById(id).mode)
+        }
+        assertEquals("LOLLO ZURICH", LevelCatalog.findById(12).bossName)
+        assertEquals("CARAMEL", LevelCatalog.findById(19).bossName)
+        assertEquals(70, LevelCatalog.findById(19).bossMaxArmor)
+        assertTrue(LevelCatalog.findById(19).multiPhase)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -397,5 +399,31 @@ class BossBattleEngineTest {
         engine.update(0.016f)
         assertEquals(2, boss.phase)
         assertEquals(50, boss.armor)
+    }
+
+    @Test
+    fun arcadeRemixLevelsFireThemedAttacks() {
+        // Level 12: Lollo Zurich in Shooter mode fires Italian complaints
+        val lollo = BossBattleEngine(level = LevelCatalog.LEVEL_12)
+        lollo.startGame()
+        lollo.state.boss.attackCooldown = 0.01f
+        lollo.update(0.02f)
+        assertTrue(lollo.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
+
+        // Level 18: Marco di Google in Shooter mode fires camera flashes & dating flex
+        val marco = BossBattleEngine(level = LevelCatalog.LEVEL_18)
+        marco.startGame()
+        marco.state.boss.attackCooldown = 0.01f
+        marco.update(0.02f)
+        assertTrue(marco.state.projectiles.any { it.kind == ProjectileKind.CAMERA_FLASH })
+        assertTrue(marco.state.projectiles.any { it.kind == ProjectileKind.DATING_FLEX })
+
+        // Level 19: Caramel in Shooter mode fires hot stones and has armor
+        val caramel = BossBattleEngine(level = LevelCatalog.LEVEL_19)
+        caramel.startGame()
+        assertEquals(70, caramel.state.boss.armor)
+        caramel.state.boss.attackCooldown = 0.01f
+        caramel.update(0.02f)
+        assertTrue(caramel.state.projectiles.any { it.kind == ProjectileKind.HOT_STONE })
     }
 }

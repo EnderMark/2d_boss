@@ -230,6 +230,145 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_12 = BossLevel(
+        id = 12,
+        title = "LIVELLO 12 • ARCADE",
+        bossName = "LOLLO ZURICH",
+        subtitle = "Navicella • Pioggia di lamentele da Zurigo",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.ZURICH,
+        hasShield = false,
+        bossMaxHp = 130,
+        bossBaseSpeed = 260f,
+        bossAttackInterval = 1.05f,
+        bossEnragedAttackInterval = 0.80f,
+        bossProjectileSpeed = 520f,
+        bossEnragedProjectileSpeed = 620f,
+        isUnlocked = true
+    )
+
+    val LEVEL_13 = BossLevel(
+        id = 13,
+        title = "LIVELLO 13 • ARCADE",
+        bossName = "IVANONE",
+        subtitle = "Navicella • Droni, flash fotografici e sparizioni",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.STUDIO,
+        hasShield = false,
+        bossMaxHp = 140,
+        bossBaseSpeed = 280f,
+        bossAttackInterval = 1.0f,
+        bossEnragedAttackInterval = 0.78f,
+        bossProjectileSpeed = 540f,
+        bossEnragedProjectileSpeed = 650f,
+        isUnlocked = true
+    )
+
+    val LEVEL_14 = BossLevel(
+        id = 14,
+        title = "LIVELLO 14 • ARCADE",
+        bossName = "ALESSIO DELLE TASSE",
+        subtitle = "Navicella • Moduli CHF e lancio dello strano dente",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.ZURICH_TAX,
+        hasShield = false,
+        bossMaxHp = 150,
+        bossBaseSpeed = 250f,
+        bossAttackInterval = 1.0f,
+        bossEnragedAttackInterval = 0.75f,
+        bossProjectileSpeed = 540f,
+        bossEnragedProjectileSpeed = 660f,
+        isUnlocked = true
+    )
+
+    val LEVEL_15 = BossLevel(
+        id = 15,
+        title = "LIVELLO 15 • ARCADE",
+        bossName = "LOUISE",
+        subtitle = "Navicella • Cuori seducenti e schivate parigine",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.PARIS,
+        hasShield = false,
+        bossMaxHp = 155,
+        bossBaseSpeed = 310f,
+        bossAttackInterval = 0.98f,
+        bossEnragedAttackInterval = 0.74f,
+        bossProjectileSpeed = 530f,
+        bossEnragedProjectileSpeed = 640f,
+        isUnlocked = true
+    )
+
+    val LEVEL_16 = BossLevel(
+        id = 16,
+        title = "LIVELLO 16 • ARCADE",
+        bossName = "DAISY",
+        subtitle = "Navicella • Urla calabresi e lamentele UBS sulle hike",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.UBS_ALPS,
+        hasShield = false,
+        bossMaxHp = 160,
+        bossBaseSpeed = 285f,
+        bossAttackInterval = 0.95f,
+        bossEnragedAttackInterval = 0.72f,
+        bossProjectileSpeed = 560f,
+        bossEnragedProjectileSpeed = 680f,
+        isUnlocked = true
+    )
+
+    val LEVEL_17 = BossLevel(
+        id = 17,
+        title = "LIVELLO 17 • ARCADE",
+        bossName = "ANDREA DATTERO",
+        subtitle = "Navicella • 200g riso e pollo e bug da 10x engineer",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.GYM_DEV,
+        hasShield = false,
+        bossMaxHp = 165,
+        bossBaseSpeed = 295f,
+        bossAttackInterval = 0.95f,
+        bossEnragedAttackInterval = 0.72f,
+        bossProjectileSpeed = 550f,
+        bossEnragedProjectileSpeed = 660f,
+        isUnlocked = true
+    )
+
+    val LEVEL_18 = BossLevel(
+        id = 18,
+        title = "LIVELLO 18 • ARCADE",
+        bossName = "MARCO DI GOOGLE",
+        subtitle = "Navicella • Porsche bianca, milioni e flash fotografici",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.GOOGLE_ZURICH,
+        hasShield = false,
+        bossMaxHp = 180,
+        bossBaseSpeed = 340f,
+        bossAttackInterval = 0.92f,
+        bossEnragedAttackInterval = 0.68f,
+        bossProjectileSpeed = 580f,
+        bossEnragedProjectileSpeed = 700f,
+        isUnlocked = true
+    )
+
+    val LEVEL_19 = BossLevel(
+        id = 19,
+        title = "LIVELLO 19 • ARCADE",
+        bossName = "CARAMEL",
+        subtitle = "Navicella • Hanoi Spa a 3 fasi con armatura e pietre calde",
+        mode = BattleMode.SHOOTER,
+        arenaTheme = ArenaTheme.HANOI_SPA,
+        hasShield = false,
+        bossMaxHp = 210,
+        bossMaxArmor = 70,
+        enablePickups = false,
+        multiPhase = true,
+        bossBaseSpeed = 280f,
+        bossAttackInterval = 0.95f,
+        bossEnragedAttackInterval = 0.70f,
+        bossProjectileSpeed = 560f,
+        bossEnragedProjectileSpeed = 680f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -241,7 +380,15 @@ object LevelCatalog {
         LEVEL_8,
         LEVEL_9,
         LEVEL_10,
-        LEVEL_11
+        LEVEL_11,
+        LEVEL_12,
+        LEVEL_13,
+        LEVEL_14,
+        LEVEL_15,
+        LEVEL_16,
+        LEVEL_17,
+        LEVEL_18,
+        LEVEL_19
     )
 
     fun findById(id: Int): BossLevel {

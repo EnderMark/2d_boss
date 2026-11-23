@@ -506,7 +506,7 @@ class GameRenderer {
             ArenaTheme.GOOGLE_ZURICH -> drawGoogleCampusBackground(canvas, state)
             else -> drawArenaGrid(canvas, state.worldWidth, if (isMelee) state.groundY else state.worldHeight)
         }
-        if (isMelee) {
+        if (isMelee || state.level.arenaTheme != ArenaTheme.SPACE) {
             drawGroundArena(canvas, state)
         }
 
