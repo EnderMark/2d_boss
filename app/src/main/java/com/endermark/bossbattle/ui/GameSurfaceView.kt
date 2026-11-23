@@ -5,11 +5,17 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.endermark.bossbattle.engine.BossBattleEngine
+import com.endermark.bossbattle.model.BossLevel
+import com.endermark.bossbattle.model.LevelCatalog
 import kotlin.math.min
 
-class GameSurfaceView(context: Context) : SurfaceView(context), SurfaceHolder.Callback {
+class GameSurfaceView(
+    context: Context,
+    level: BossLevel = LevelCatalog.LEVEL_1,
+    private val onExitToMenu: () -> Unit = {}
+) : SurfaceView(context), SurfaceHolder.Callback {
 
-    private val engine = BossBattleEngine()
+    private val engine = BossBattleEngine(level = level)
     private val renderer = GameRenderer()
     private val stateLock = Any()
 
@@ -45,30 +51,40 @@ class GameSurfaceView(context: Context) : SurfaceView(context), SurfaceHolder.Ca
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val worldX = screenToWorldX(event.x)
+        val (worldX, worldY) = screenToWorld(event.x, event.y)
+        var exitRequested = false
         synchronized(stateLock) {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    engine.handleTapOrRestart()
-                    engine.setPlayerTargetX(worldX)
+                    if (renderer.isMenuButtonHit(worldX, worldY, engine.state)) {
+                        exitRequested = true
+                    } else {
+                        engine.handleTapOrRestart()
+                        engine.setPlayerTargetX(worldX)
+                    }
                 }
                 MotionEvent.ACTION_MOVE -> {
                     engine.setPlayerTargetX(worldX)
                 }
             }
         }
+        if (exitRequested) {
+            post { onExitToMenu() }
+        }
         return true
     }
 
-    private fun screenToWorldX(screenX: Float): Float {
+    private fun screenToWorld(screenX: Float, screenY: Float): Pair<Float, Float> {
         if (width <= 0 || height <= 0) {
-            return BossBattleEngine.DEFAULT_WORLD_WIDTH / 2f
+            return BossBattleEngine.DEFAULT_WORLD_WIDTH / 2f to
+                BossBattleEngine.DEFAULT_WORLD_HEIGHT / 2f
         }
         val worldWidth = engine.state.worldWidth
         val worldHeight = engine.state.worldHeight
         val scale = min(width.toFloat() / worldWidth, height.toFloat() / worldHeight)
         val offsetX = (width - worldWidth * scale) / 2f
-        return (screenX - offsetX) / scale
+        val offsetY = (height - worldHeight * scale) / 2f
+        return ((screenX - offsetX) / scale) to ((screenY - offsetY) / scale)
     }
 
     private fun startLoop() {

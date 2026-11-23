@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">2D Boss Battle</string>
+    <string name="menu_title">2D BOSS BATTLE</string>
+    <string name="menu_subtitle">Seleziona un livello per iniziare la sfida</string>
+    <string name="menu_more_levels_soon">Altri livelli e boss in arrivo...</string>
+    <string name="play_level">Gioca</string>
+    <string name="boss_hp_format">%1$d HP</string>
 </resources>

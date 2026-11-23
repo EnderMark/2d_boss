@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.endermark.bossbattle.model.LevelCatalog
 
 class MainActivity : AppCompatActivity() {
 
@@ -13,8 +14,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val levelId = intent.getIntExtra(EXTRA_LEVEL_ID, LevelCatalog.LEVEL_1.id)
+        val selectedLevel = LevelCatalog.findById(levelId)
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        gameSurfaceView = GameSurfaceView(this)
+        gameSurfaceView = GameSurfaceView(
+            context = this,
+            level = selectedLevel,
+            onExitToMenu = { finish() }
+        )
         setContentView(gameSurfaceView)
 
         hideSystemBars()
@@ -36,5 +44,9 @@ class MainActivity : AppCompatActivity() {
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    companion object {
+        const val EXTRA_LEVEL_ID = "extra_level_id"
     }
 }

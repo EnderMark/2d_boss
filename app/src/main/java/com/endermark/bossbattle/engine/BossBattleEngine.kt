@@ -1,9 +1,11 @@
 package com.endermark.bossbattle.engine
 
 import com.endermark.bossbattle.model.Boss
+import com.endermark.bossbattle.model.BossLevel
 import com.endermark.bossbattle.model.GameState
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.HitParticle
+import com.endermark.bossbattle.model.LevelCatalog
 import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.Projectile
 import kotlin.math.PI
@@ -14,10 +16,11 @@ import kotlin.math.max
 import kotlin.math.sin
 
 class BossBattleEngine(
+    val level: BossLevel = LevelCatalog.LEVEL_1,
     worldWidth: Float = DEFAULT_WORLD_WIDTH,
     worldHeight: Float = DEFAULT_WORLD_HEIGHT
 ) {
-    val state: GameState = createInitialState(worldWidth, worldHeight)
+    val state: GameState = createInitialState(level, worldWidth, worldHeight)
 
     private var targetPlayerX: Float = worldWidth / 2f
 
@@ -63,7 +66,7 @@ class BossBattleEngine(
             y = BOSS_TOP_OFFSET
             hp = maxHp
             displayedHp = maxHp.toFloat()
-            velocityX = BOSS_BASE_SPEED
+            velocityX = level.bossBaseSpeed
             attackCooldown = 0.9f
             hitFlashTimer = 0f
         }
@@ -135,9 +138,9 @@ class BossBattleEngine(
         if (boss.attackCooldown <= 0f) {
             spawnBossAttack()
             boss.attackCooldown = if (boss.isEnraged) {
-                BOSS_ENRAGED_ATTACK_INTERVAL
+                level.bossEnragedAttackInterval
             } else {
-                BOSS_ATTACK_INTERVAL
+                level.bossAttackInterval
             }
         }
     }
@@ -247,7 +250,11 @@ class BossBattleEngine(
             listOf(baseAngle)
         }
 
-        val speed = if (boss.isEnraged) BOSS_ENRAGED_PROJECTILE_SPEED else BOSS_PROJECTILE_SPEED
+        val speed = if (boss.isEnraged) {
+            level.bossEnragedProjectileSpeed
+        } else {
+            level.bossProjectileSpeed
+        }
         for (angle in angles) {
             state.projectiles.add(
                 Projectile(
@@ -315,8 +322,13 @@ class BossBattleEngine(
         return hypot(x2 - x1, y2 - y1) <= (r1 + r2)
     }
 
-    private fun createInitialState(worldWidth: Float, worldHeight: Float): GameState {
+    private fun createInitialState(
+        level: BossLevel,
+        worldWidth: Float,
+        worldHeight: Float
+    ): GameState {
         return GameState(
+            level = level,
             worldWidth = worldWidth,
             worldHeight = worldHeight,
             status = GameStatus.READY,
@@ -325,9 +337,13 @@ class BossBattleEngine(
                 y = worldHeight - PLAYER_BOTTOM_OFFSET
             ),
             boss = Boss(
+                name = level.bossName,
                 x = worldWidth / 2f,
                 y = BOSS_TOP_OFFSET,
-                velocityX = BOSS_BASE_SPEED
+                hp = level.bossMaxHp,
+                maxHp = level.bossMaxHp,
+                displayedHp = level.bossMaxHp.toFloat(),
+                velocityX = level.bossBaseSpeed
             )
         )
     }

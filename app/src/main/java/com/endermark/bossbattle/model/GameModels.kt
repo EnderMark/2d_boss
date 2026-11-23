@@ -71,6 +71,7 @@ data class HitParticle(
 )
 
 data class GameState(
+    val level: BossLevel,
     val worldWidth: Float,
     val worldHeight: Float,
     var status: GameStatus,

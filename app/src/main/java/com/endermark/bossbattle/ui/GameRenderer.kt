@@ -350,6 +350,43 @@ class GameRenderer {
         }
     }
 
+    private val menuButtonBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#232946")
+        style = Paint.Style.FILL
+    }
+
+    private val menuButtonBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#5C6BC0")
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+    }
+
+    private val menuButtonTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 34f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
+    fun isMenuButtonHit(worldX: Float, worldY: Float, state: GameState): Boolean {
+        if (state.status == GameStatus.PLAYING) return false
+        val rect = menuButtonRect(state.worldWidth, state.worldHeight)
+        return rect.contains(worldX, worldY)
+    }
+
+    private fun menuButtonRect(worldWidth: Float, worldHeight: Float): RectF {
+        val centerX = worldWidth / 2f
+        val centerY = worldHeight / 2f
+        val width = 380f
+        val height = 92f
+        return RectF(
+            centerX - width / 2f,
+            centerY + 180f,
+            centerX + width / 2f,
+            centerY + 180f + height
+        )
+    }
+
     private fun drawOverlay(canvas: Canvas, state: GameState) {
         canvas.drawRect(0f, 0f, state.worldWidth, state.worldHeight, overlayScrimPaint)
 
@@ -358,8 +395,8 @@ class GameRenderer {
 
         val (title, subtitle, prompt) = when (state.status) {
             GameStatus.READY -> Triple(
-                "2D BOSS BATTLE",
-                "Trascina per schivare i colpi",
+                state.level.title,
+                "${state.boss.name} • Trascina per schivare",
                 "Tocca per iniziare"
             )
             GameStatus.VICTORY -> Triple(
@@ -378,5 +415,15 @@ class GameRenderer {
         canvas.drawText(title, centerX, centerY - 60f, titlePaint)
         canvas.drawText(subtitle, centerX, centerY + 12f, subtitlePaint)
         canvas.drawText(prompt, centerX, centerY + 110f, promptPaint)
+
+        val buttonRect = menuButtonRect(state.worldWidth, state.worldHeight)
+        canvas.drawRoundRect(buttonRect, 20f, 20f, menuButtonBgPaint)
+        canvas.drawRoundRect(buttonRect, 20f, 20f, menuButtonBorderPaint)
+        canvas.drawText(
+            "MENU LIVELLI",
+            buttonRect.centerX(),
+            buttonRect.centerY() + 12f,
+            menuButtonTextPaint
+        )
     }
 }
