@@ -2,6 +2,7 @@ package com.endermark.bossbattle.engine
 
 import com.endermark.bossbattle.model.ArenaPickup
 import com.endermark.bossbattle.model.ArenaTheme
+import com.endermark.bossbattle.model.ArenaTurret
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
 import com.endermark.bossbattle.model.BossAction
@@ -173,6 +174,7 @@ class BossBattleEngine(
         state.lasers.clear()
         state.minions.clear()
         state.weakPoints.clear()
+        state.turrets.clear()
         state.joystickX = 0f
         state.joystickY = 0f
         state.phaseFlashTimer = 0f
@@ -190,6 +192,9 @@ class BossBattleEngine(
         }
         if (level.enableWeakPoints) {
             populateWeakPoints()
+        }
+        if (level.enableTurretFortress) {
+            populateTurrets()
         }
 
         if (level.mode == BattleMode.MELEE_PLATFORMER) {
@@ -235,7 +240,11 @@ class BossBattleEngine(
         } else {
             state.player.apply {
                 x = state.worldWidth / 2f
-                y = state.worldHeight - PLAYER_BOTTOM_OFFSET
+                y = if (level.enableTurretFortress) {
+                    state.worldHeight * 0.54f
+                } else {
+                    state.worldHeight - PLAYER_BOTTOM_OFFSET
+                }
                 hp = maxHp
                 invulnerableTimer = 0f
                 fireCooldown = if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER) 0f else 0.15f
@@ -257,7 +266,7 @@ class BossBattleEngine(
             }
             state.boss.apply {
                 x = state.worldWidth / 2f
-                y = BOSS_TOP_OFFSET
+                y = if (level.enableTurretFortress) FORTRESS_BOSS_Y else BOSS_TOP_OFFSET
                 hp = maxHp
                 displayedHp = maxHp.toFloat()
                 armor = level.bossMaxArmor
@@ -305,6 +314,7 @@ class BossBattleEngine(
                 updateFreeFlightPlayer(dt)
                 updateFreeFlightBoss(dt)
                 updateMinions(dt)
+                updateTurrets(dt)
             }
             BattleMode.SHOOTER -> {
                 updateShooterPlayer(dt)
@@ -410,6 +420,25 @@ class BossBattleEngine(
             return
         }
 
+        if (level.enableTurretFortress) {
+            // Top fortress mega-turret stays anchored at top center
+            boss.x = state.worldWidth * 0.5f
+            boss.y = FORTRESS_BOSS_Y
+            if (state.hasActiveTurrets) {
+                return
+            }
+            boss.attackCooldown -= dt
+            if (boss.attackCooldown <= 0f) {
+                spawnMegaTurretSalvo()
+                boss.attackCooldown = if (boss.isEnraged) {
+                    level.bossEnragedAttackInterval
+                } else {
+                    level.bossAttackInterval
+                }
+            }
+            return
+        }
+
         // Smooth orbital figure-8 flight across upper-central space
         val speedScale = if (boss.isEnraged) 1.35f else 1.0f
         val t = state.elapsedTime * speedScale
@@ -433,6 +462,64 @@ class BossBattleEngine(
             if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
                 spawnMinionShip()
                 minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+            }
+        }
+    }
+
+    private fun spawnMegaTurretSalvo() {
+        val boss = state.boss
+        val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - boss.y).toDouble(), (player.x - boss.x).toDouble())
+        val offsets = if (boss.isEnraged) {
+            listOf(-0.48, -0.32, -0.16, 0.0, 0.16, 0.32, 0.48)
+        } else {
+            listOf(-0.32, -0.16, 0.0, 0.16, 0.32)
+        }
+        for (offset in offsets) {
+            val angle = baseAngle + offset
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + (cos(angle) * boss.radius * 0.8f).toFloat(),
+                    y = boss.y + (sin(angle) * boss.radius * 0.8f).toFloat(),
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 18f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.BOSS_ORB
+                )
+            )
+        }
+    }
+
+    private fun updateTurrets(dt: Float) {
+        if (state.turrets.isEmpty()) return
+        val player = state.player
+        for (turret in state.turrets) {
+            if (turret.isDestroyed) continue
+            if (turret.hitFlashTimer > 0f) {
+                turret.hitFlashTimer = max(0f, turret.hitFlashTimer - dt)
+            }
+            turret.angle = atan2((player.y - turret.y).toDouble(), (player.x - turret.x).toDouble()).toFloat()
+            turret.fireCooldown -= dt
+            if (turret.fireCooldown <= 0f) {
+                val cosA = cos(turret.angle.toDouble()).toFloat()
+                val sinA = sin(turret.angle.toDouble()).toFloat()
+                state.projectiles.add(
+                    Projectile(
+                        x = turret.x + cosA * (turret.radius + 8f),
+                        y = turret.y + sinA * (turret.radius + 8f),
+                        vx = cosA * TURRET_BOLT_SPEED,
+                        vy = sinA * TURRET_BOLT_SPEED,
+                        radius = 13f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.BOSS_ORB
+                    )
+                )
+                turret.fireCooldown = TURRET_FIRE_INTERVAL
             }
         }
     }
@@ -1099,13 +1186,42 @@ class BossBattleEngine(
                 }
                 if (hitWeakPoint) continue
 
+                // Check perimeter turrets (Level 23 Turret Fortress)
+                var hitTurret = false
+                for (turret in state.turrets) {
+                    if (turret.isDestroyed) continue
+                    if (circlesCollide(projectile.x, projectile.y, projectile.radius, turret.x, turret.y, turret.radius)) {
+                        hitTurret = true
+                        iterator.remove()
+                        turret.hp = max(0, turret.hp - projectile.damage)
+                        turret.hitFlashTimer = 0.09f
+                        if (turret.isDestroyed) {
+                            emitSound(GameSoundEvent.ARMOR_BREAK)
+                            spawnHitParticles(turret.x, turret.y, COLOR_VICTORY_SPARK, 16)
+                            if (!state.hasActiveTurrets) {
+                                state.phaseFlashTimer = 0.60f
+                                boss.attackCooldown = 0.9f
+                                emitSound(GameSoundEvent.BOSS_CHARGE)
+                                spawnHitParticles(boss.x, boss.y, COLOR_SHIELD_BLOCK_SPARK, 26)
+                            }
+                        } else {
+                            emitSound(GameSoundEvent.BOSS_HIT)
+                            spawnHitParticles(projectile.x, projectile.y, COLOR_BOSS_HIT_SPARK, 7)
+                        }
+                        break
+                    }
+                }
+                if (hitTurret) continue
+
                 if (!boss.isVanished && circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         boss.x, boss.y, boss.radius
                     )
                 ) {
                     iterator.remove()
-                    if (state.hasActiveWeakPoints) {
+                    val isBossProtected = state.hasActiveWeakPoints ||
+                        (level.enableTurretFortress && state.hasActiveTurrets)
+                    if (isBossProtected) {
                         emitSound(GameSoundEvent.SHIELD_BLOCK)
                         spawnHitParticles(projectile.x, projectile.y, COLOR_ARMOR_SPARK, 8)
                     } else {
@@ -1142,17 +1258,29 @@ class BossBattleEngine(
             }
         }
 
-        // Free-flight body contact with Dreadnought or minion ships
+        // Free-flight body contact with Dreadnought, minion ships, or live perimeter turrets
         if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER && !player.isInvulnerable) {
             if (circlesCollide(player.x, player.y, player.radius * 0.85f, boss.x, boss.y, boss.radius * 0.85f)) {
                 applyDamageToPlayer(1)
                 if (state.status != GameStatus.PLAYING) return
             } else {
+                var hitBody = false
                 for (minion in state.minions) {
                     if (circlesCollide(player.x, player.y, player.radius * 0.85f, minion.x, minion.y, minion.radius * 0.85f)) {
                         applyDamageToPlayer(1)
                         if (state.status != GameStatus.PLAYING) return
+                        hitBody = true
                         break
+                    }
+                }
+                if (!hitBody) {
+                    for (turret in state.turrets) {
+                        if (turret.isDestroyed) continue
+                        if (circlesCollide(player.x, player.y, player.radius * 0.85f, turret.x, turret.y, turret.radius * 0.85f)) {
+                            applyDamageToPlayer(1)
+                            if (state.status != GameStatus.PLAYING) return
+                            break
+                        }
                     }
                 }
             }
@@ -1816,6 +1944,32 @@ class BossBattleEngine(
         )
     }
 
+    private fun populateTurrets() {
+        val w = state.worldWidth
+        state.turrets.clear()
+        // 8 perimeter turrets surrounding the player across the entire arena
+        val positions = listOf(
+            Pair(115f, 340f),
+            Pair(w - 115f, 340f),
+            Pair(72f, 620f),
+            Pair(w - 72f, 620f),
+            Pair(72f, 960f),
+            Pair(w - 72f, 960f),
+            Pair(295f, 1290f),
+            Pair(w - 295f, 1290f)
+        )
+        positions.forEachIndexed { idx, (tx, ty) ->
+            state.turrets.add(
+                ArenaTurret(
+                    id = idx + 1,
+                    x = tx,
+                    y = ty,
+                    fireCooldown = 1.1f + (idx % 4) * 0.55f
+                )
+            )
+        }
+    }
+
     private fun populateInitialPlatforms() {
         state.platforms.clear()
         state.platforms.add(
@@ -2089,6 +2243,9 @@ class BossBattleEngine(
         private const val MINION_SPEED = 205f
         private const val MINION_BOLT_SPEED = 400f
         private const val MINION_FIRE_INTERVAL = 1.95f
+        private const val FORTRESS_BOSS_Y = 285f
+        private const val TURRET_FIRE_INTERVAL = 2.8f
+        private const val TURRET_BOLT_SPEED = 360f
 
         private const val PLATFORMER_MOVE_SPEED = 460f
         private const val SHIELD_MOVE_MULTIPLIER = 0.55f

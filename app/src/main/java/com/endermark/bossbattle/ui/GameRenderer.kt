@@ -18,6 +18,7 @@ import com.endermark.bossbattle.model.Player
 import com.endermark.bossbattle.model.ProjectileKind
 import com.endermark.bossbattle.model.WeaponType
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -519,11 +520,16 @@ class GameRenderer {
         }
 
         drawMovingPlatforms(canvas, state)
-        drawBossHealthBar(canvas, state.boss, state.worldWidth, state.level.multiPhase)
+        if (state.level.enableTurretFortress && state.hasActiveTurrets) {
+            drawFortressSealedBar(canvas, state)
+        } else {
+            drawBossHealthBar(canvas, state.boss, state.worldWidth, state.level.multiPhase)
+        }
         drawPickups(canvas, state)
         drawLasers(canvas, state)
         drawProjectiles(canvas, state)
         drawMinions(canvas, state)
+        drawTurrets(canvas, state)
         drawParticles(canvas, state)
 
         if (state.boss.hp > 0 && !state.boss.isVanished) {
@@ -532,9 +538,13 @@ class GameRenderer {
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.DEEP_SPACE -> {
-                    drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime, state.hasActiveWeakPoints)
-                    if (state.weakPoints.isNotEmpty()) {
-                        drawWeakPoints(canvas, state)
+                    if (state.level.enableTurretFortress) {
+                        drawMegaTurretBoss(canvas, state)
+                    } else {
+                        drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime, state.hasActiveWeakPoints)
+                        if (state.weakPoints.isNotEmpty()) {
+                            drawWeakPoints(canvas, state)
+                        }
                     }
                 }
                 ArenaTheme.ZURICH -> drawLolloZurichBoss(canvas, state.boss, state.elapsedTime)
@@ -2199,6 +2209,150 @@ class GameRenderer {
         phaseBadgePaint.textAlign = Paint.Align.RIGHT
         canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)
         phaseBadgePaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawFortressSealedBar(canvas: Canvas, state: GameState) {
+        val marginX = 52f
+        val topY = 92f
+        val barHeight = 36f
+        val barWidth = state.worldWidth - marginX * 2f
+        val cornerRadius = 14f
+        val total = state.turrets.size.coerceAtLeast(1)
+        val remaining = state.turrets.count { !it.isDestroyed }
+        val ratio = remaining.toFloat() / total.toFloat()
+
+        canvas.drawText("TORRETTE FORTEZZA", marginX, topY - 18f, bossNamePaint)
+        canvas.drawText(
+            "$remaining / $total ATTIVE",
+            state.worldWidth - marginX,
+            topY - 18f,
+            hpTextPaint
+        )
+
+        tempRect.set(marginX, topY, marginX + barWidth, topY + barHeight)
+        canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBgPaint)
+
+        val fillW = barWidth * ratio
+        if (fillW > 0f) {
+            tempRect.set(marginX, topY, marginX + fillW, topY + barHeight)
+            canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, hanoiLanternGoldPaint)
+        }
+        tempRect.set(marginX, topY, marginX + barWidth, topY + barHeight)
+        canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBorderPaint)
+
+        phaseBadgePaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText("SUPER-TORRETTA SIGILLATA • DISTRUGGI TUTTE LE TORRETTE", state.worldWidth - 52f, 162f, phaseBadgePaint)
+        phaseBadgePaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawTurrets(canvas: Canvas, state: GameState) {
+        for (turret in state.turrets) {
+            val tx = turret.x
+            val ty = turret.y
+            val r = turret.radius
+            if (turret.isDestroyed) {
+                canvas.drawCircle(tx, ty, r * 0.72f, chanHairPaint)
+                canvas.drawCircle(tx, ty, r * 0.35f, controlBgPaint)
+                continue
+            }
+
+            // Armored base plate
+            bossArmorPaint.color = if (turret.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#455A64")
+            canvas.drawCircle(tx, ty, r, bossArmorPaint)
+            canvas.drawCircle(tx, ty, r, bossOutlinePaint)
+
+            // Rotating gun barrel aiming at player
+            canvas.save()
+            canvas.translate(tx, ty)
+            canvas.rotate(Math.toDegrees(turret.angle.toDouble()).toFloat())
+            bossCorePaint.color = if (turret.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FF5252")
+            tempRect.set(0f, -9f, r * 1.25f, 9f)
+            canvas.drawRoundRect(tempRect, 4f, 4f, bossCorePaint)
+            canvas.drawRoundRect(tempRect, 4f, 4f, bossOutlinePaint)
+            canvas.restore()
+
+            // Glowing sensor core
+            bossCorePaint.color = if (turret.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FFAB00")
+            canvas.drawCircle(tx, ty, r * 0.42f, bossCorePaint)
+            canvas.drawCircle(tx, ty, r * 0.18f, swissCrossWhitePaint)
+
+            // Mini HP bar above turret
+            val barW = 58f
+            val barLeft = tx - barW / 2f
+            val barTop = ty - r - 15f
+            tempRect.set(barLeft, barTop, barLeft + barW, barTop + 8f)
+            canvas.drawRoundRect(tempRect, 4f, 4f, barBgPaint)
+            tempRect.set(barLeft, barTop, barLeft + barW * turret.hpRatio, barTop + 8f)
+            canvas.drawRoundRect(tempRect, 4f, 4f, hanoiLanternGoldPaint)
+        }
+    }
+
+    private fun drawMegaTurretBoss(canvas: Canvas, state: GameState) {
+        val boss = state.boss
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isSealed = state.hasActiveTurrets
+        val isHit = boss.hitFlashTimer > 0f
+
+        // Heavy fortress wall mount behind top boss turret
+        bossArmorPaint.color = Color.parseColor("#263238")
+        tempRect.set(x - r * 1.65f, y - r * 0.85f, x + r * 1.65f, y + r * 0.30f)
+        canvas.drawRoundRect(tempRect, 18f, 18f, bossArmorPaint)
+        canvas.drawRoundRect(tempRect, 18f, 18f, bossOutlinePaint)
+
+        // Main armored circular turret housing
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            isSealed -> Color.parseColor("#37474F")
+            boss.isEnraged -> Color.parseColor("#880E4F")
+            else -> Color.parseColor("#4A148C")
+        }
+        canvas.drawCircle(x, y, r, bossArmorPaint)
+        canvas.drawCircle(x, y, r, bossOutlinePaint)
+
+        if (isSealed) {
+            // Sealed blast shutters + shimmering invincibility shield
+            val shieldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(175, 0, 229, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 10f
+            }
+            val pulseR = r * (1.22f + 0.04f * sin(state.elapsedTime * 7f))
+            canvas.drawCircle(x, y, pulseR, shieldPaint)
+            canvas.drawCircle(x, y, pulseR * 0.92f, shieldAuraPaint)
+
+            // Armored X-lock plates
+            canvas.drawLine(x - r * 0.55f, y - r * 0.55f, x + r * 0.55f, y + r * 0.55f, controlShieldBorderPaint)
+            canvas.drawLine(x + r * 0.55f, y - r * 0.55f, x - r * 0.55f, y + r * 0.55f, controlShieldBorderPaint)
+            bossCorePaint.color = Color.parseColor("#00E5FF")
+            canvas.drawCircle(x, y, r * 0.28f, bossCorePaint)
+        } else {
+            // Unlocked mega-turret: twin heavy barrels tracking player + exposed core
+            val aimAngle = atan2((state.player.y - y).toDouble(), (state.player.x - x).toDouble())
+            canvas.save()
+            canvas.translate(x, y)
+            canvas.rotate(Math.toDegrees(aimAngle).toFloat())
+            bossCorePaint.color = if (isHit) Color.WHITE else Color.parseColor("#FF1744")
+            tempRect.set(12f, -34f, r * 1.32f, -12f)
+            canvas.drawRoundRect(tempRect, 6f, 6f, bossCorePaint)
+            canvas.drawRoundRect(tempRect, 6f, 6f, bossOutlinePaint)
+            tempRect.set(12f, 12f, r * 1.32f, 34f)
+            canvas.drawRoundRect(tempRect, 6f, 6f, bossCorePaint)
+            canvas.drawRoundRect(tempRect, 6f, 6f, bossOutlinePaint)
+            // Center plasma cannon
+            tempRect.set(20f, -10f, r * 1.45f, 10f)
+            canvas.drawRoundRect(tempRect, 5f, 5f, hanoiLanternGoldPaint)
+            canvas.restore()
+
+            bossCorePaint.color = when {
+                isHit -> Color.WHITE
+                boss.isEnraged -> Color.parseColor("#FFAB00")
+                else -> Color.parseColor("#FF5252")
+            }
+            canvas.drawCircle(x, y, r * 0.36f, bossCorePaint)
+            canvas.drawCircle(x, y, r * 0.16f, swissCrossWhitePaint)
+        }
     }
 
     private fun drawMinions(canvas: Canvas, state: GameState) {

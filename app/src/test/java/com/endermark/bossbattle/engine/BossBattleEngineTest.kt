@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyTwoLevels() {
-        assertEquals(22, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyThreeLevels() {
+        assertEquals(23, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -33,6 +33,13 @@ class BossBattleEngineTest {
         assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level22.mode)
         assertFalse(level22.enableMinions)
         assertTrue(level22.enableWeakPoints)
+
+        val level23 = LevelCatalog.findById(23)
+        assertEquals("BASTIONE ORBITALE", level23.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level23.mode)
+        assertFalse(level23.enableMinions)
+        assertFalse(level23.enableWeakPoints)
+        assertTrue(level23.enableTurretFortress)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -569,5 +576,74 @@ class BossBattleEngineTest {
         )
         engine.update(0.016f)
         assertEquals(initialHp - 20, boss.hp)
+    }
+
+    @Test
+    fun levelTwentyThreePerimeterTurretsUnlockTopMegaTurret() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_23)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        assertEquals(8, engine.state.turrets.size)
+        assertTrue(engine.state.hasActiveTurrets)
+
+        // Advance time: perimeter turrets fire at player, no minions spawn
+        repeat(40) { engine.update(0.05f) }
+        assertTrue(engine.state.minions.isEmpty())
+        assertTrue(engine.state.projectiles.any { !it.fromPlayer })
+
+        // Top mega-turret is locked/invincible while perimeter turrets remain
+        val initialHp = boss.hp
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 25
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp, boss.hp)
+
+        // Destroy all 8 perimeter turrets
+        for (turret in engine.state.turrets) {
+            engine.state.projectiles.add(
+                Projectile(
+                    x = turret.x,
+                    y = turret.y,
+                    vx = 0f,
+                    vy = 0f,
+                    radius = 12f,
+                    fromPlayer = true,
+                    damage = turret.maxHp
+                )
+            )
+            engine.update(0.016f)
+            assertTrue(turret.isDestroyed)
+        }
+        assertFalse(engine.state.hasActiveTurrets)
+
+        // Top mega-turret is now unlocked, takes damage, and fires back
+        engine.state.projectiles.clear()
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 25
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp - 25, boss.hp)
+
+        boss.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.count { !it.fromPlayer } >= 5)
     }
 }

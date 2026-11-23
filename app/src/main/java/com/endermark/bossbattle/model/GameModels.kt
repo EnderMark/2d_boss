@@ -133,6 +133,28 @@ data class BossWeakPoint(
     }
 }
 
+data class ArenaTurret(
+    val id: Int,
+    val x: Float,
+    val y: Float,
+    val radius: Float = 32f,
+    var hp: Int = MAX_HP,
+    val maxHp: Int = MAX_HP,
+    var angle: Float = 0f,
+    var fireCooldown: Float = 1.6f,
+    var hitFlashTimer: Float = 0f
+) {
+    val isDestroyed: Boolean
+        get() = hp <= 0
+
+    val hpRatio: Float
+        get() = (hp.toFloat() / maxHp.toFloat()).coerceIn(0f, 1f)
+
+    companion object {
+        const val MAX_HP = 32
+    }
+}
+
 data class Player(
     var x: Float,
     var y: Float,
@@ -261,6 +283,7 @@ data class GameState(
     val lasers: MutableList<LaserBeam> = mutableListOf(),
     val minions: MutableList<MinionShip> = mutableListOf(),
     val weakPoints: MutableList<BossWeakPoint> = mutableListOf(),
+    val turrets: MutableList<ArenaTurret> = mutableListOf(),
     var joystickX: Float = 0f,
     var joystickY: Float = 0f,
     var elapsedTime: Float = 0f,
@@ -270,4 +293,7 @@ data class GameState(
 ) {
     val hasActiveWeakPoints: Boolean
         get() = weakPoints.any { !it.isDestroyed }
+
+    val hasActiveTurrets: Boolean
+        get() = turrets.any { !it.isDestroyed }
 }

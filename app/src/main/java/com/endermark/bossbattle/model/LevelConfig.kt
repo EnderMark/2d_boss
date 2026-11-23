@@ -38,6 +38,7 @@ data class BossLevel(
     val enableLasers: Boolean = false,
     val enableMinions: Boolean = false,
     val enableWeakPoints: Boolean = false,
+    val enableTurretFortress: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -435,6 +436,26 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_23 = BossLevel(
+        id = 23,
+        title = "LIVELLO 23 • FORTEZZA ORBITALE",
+        bossName = "BASTIONE ORBITALE",
+        subtitle = "Pad 360° • Distruggi tutte le torrette attorno per sbloccare la super-torretta in alto",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 260,
+        enableMinions = false,
+        enableWeakPoints = false,
+        enableTurretFortress = true,
+        bossBaseSpeed = 0f,
+        bossAttackInterval = 1.15f,
+        bossEnragedAttackInterval = 0.80f,
+        bossProjectileSpeed = 490f,
+        bossEnragedProjectileSpeed = 600f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -457,7 +478,8 @@ object LevelCatalog {
         LEVEL_19,
         LEVEL_20,
         LEVEL_21,
-        LEVEL_22
+        LEVEL_22,
+        LEVEL_23
     )
 
     fun findById(id: Int): BossLevel {
