@@ -47,6 +47,8 @@ class BossBattleEngine(
     private var pickupSpawnTimer: Float = PICKUP_FIRST_SPAWN_DELAY
     private var pickupSequenceIndex: Int = 0
     private var giantLolloAttackIndex: Int = 0
+    private var furiousLaserTimer: Float = FURIOUS_LASER_FIRST_DELAY
+    private var furiousLaserToggle: Boolean = false
     private val pendingSoundEvents: MutableList<GameSoundEvent> = mutableListOf()
 
     fun drainSoundEvents(): List<GameSoundEvent> {
@@ -191,6 +193,8 @@ class BossBattleEngine(
         pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY
         pickupSequenceIndex = 0
         giantLolloAttackIndex = 0
+        furiousLaserTimer = FURIOUS_LASER_FIRST_DELAY
+        furiousLaserToggle = false
 
         if (level.enablePlatforms) {
             populateInitialPlatforms()
@@ -449,14 +453,18 @@ class BossBattleEngine(
                 state.lolloIngolfatoTimer = max(0f, state.lolloIngolfatoTimer - dt)
                 boss.x = (boss.x + sin(state.elapsedTime * 18f) * 38f * dt)
                     .coerceIn(boss.radius + ARENA_PADDING, state.worldWidth - boss.radius - ARENA_PADDING)
+                if (level.enableFuriousLollo && state.lolloIngolfatoTimer <= 0f) {
+                    spawnFuriousLolloRageBurst()
+                }
                 return
             }
-            val speedScale = if (boss.isEnraged) 1.25f else 1.0f
+            val baseSpeedScale = if (level.enableFuriousLollo) 1.28f else 1.0f
+            val speedScale = baseSpeedScale * if (boss.isEnraged) 1.25f else 1.0f
             val t = state.elapsedTime * speedScale
-            val targetX = state.worldWidth * 0.5f + sin(t * 0.65f) * 250f
-            val targetY = 435f + sin(t * 1.25f) * 85f
-            boss.x += (targetX - boss.x) * (2.8f * dt).coerceAtMost(1f)
-            boss.y += (targetY - boss.y) * (2.8f * dt).coerceAtMost(1f)
+            val targetX = state.worldWidth * 0.5f + sin(t * 0.65f) * 265f
+            val targetY = 435f + sin(t * 1.25f) * 95f
+            boss.x += (targetX - boss.x) * (3.1f * dt).coerceAtMost(1f)
+            boss.y += (targetY - boss.y) * (3.1f * dt).coerceAtMost(1f)
 
             boss.attackCooldown -= dt
             if (boss.attackCooldown <= 0f) {
@@ -465,6 +473,18 @@ class BossBattleEngine(
                     level.bossEnragedAttackInterval
                 } else {
                     level.bossAttackInterval
+                }
+            }
+
+            if (level.enableFuriousLollo) {
+                furiousLaserTimer -= dt
+                if (furiousLaserTimer <= 0f) {
+                    spawnFuriousLolloLasers()
+                    furiousLaserTimer = if (boss.isEnraged) {
+                        FURIOUS_LASER_ENRAGED_INTERVAL
+                    } else {
+                        FURIOUS_LASER_INTERVAL
+                    }
                 }
             }
             return
@@ -568,8 +588,12 @@ class BossBattleEngine(
                 )
             }
             else -> {
-                // Spread of flying Computers
-                val offsets = if (boss.isEnraged) listOf(-0.36, 0.0, 0.36) else listOf(-0.24, 0.24)
+                // Spread of flying Computers (denser when Furious!)
+                val offsets = when {
+                    level.enableFuriousLollo && boss.isEnraged -> listOf(-0.48, -0.16, 0.16, 0.48)
+                    level.enableFuriousLollo || boss.isEnraged -> listOf(-0.36, 0.0, 0.36)
+                    else -> listOf(-0.24, 0.24)
+                }
                 for (offset in offsets) {
                     val angle = baseAngle + offset
                     state.projectiles.add(
@@ -587,6 +611,72 @@ class BossBattleEngine(
                     )
                 }
             }
+        }
+    }
+
+    private fun spawnFuriousLolloLasers() {
+        val player = state.player
+        val boss = state.boss
+        furiousLaserToggle = !furiousLaserToggle
+        val telegraph = if (boss.isEnraged) 0.80f else 0.95f
+        val active = 0.52f
+        val clampedY = player.y.coerceIn(260f, state.worldHeight - 240f)
+        val clampedX = player.x.coerceIn(110f, state.worldWidth - 110f)
+
+        if (boss.isEnraged) {
+            // Cross laser (horizontal + vertical) when below 50% HP!
+            state.lasers.add(
+                LaserBeam(
+                    isHorizontal = true,
+                    position = clampedY,
+                    thickness = 42f,
+                    telegraphTimer = telegraph,
+                    activeTimer = active
+                )
+            )
+            state.lasers.add(
+                LaserBeam(
+                    isHorizontal = false,
+                    position = clampedX,
+                    thickness = 42f,
+                    telegraphTimer = telegraph,
+                    activeTimer = active
+                )
+            )
+        } else {
+            state.lasers.add(
+                LaserBeam(
+                    isHorizontal = furiousLaserToggle,
+                    position = if (furiousLaserToggle) clampedY else clampedX,
+                    thickness = 44f,
+                    telegraphTimer = telegraph,
+                    activeTimer = active
+                )
+            )
+        }
+    }
+
+    private fun spawnFuriousLolloRageBurst() {
+        val boss = state.boss
+        state.phaseFlashTimer = 0.45f
+        emitSound(GameSoundEvent.BOSS_CHARGE)
+        spawnHitParticles(boss.x, boss.y, COLOR_BOSS_HIT_SPARK, 28)
+        val count = 8
+        val speed = level.bossProjectileSpeed * 0.92f
+        for (i in 0 until count) {
+            val angle = (2.0 * PI * i) / count
+            state.projectiles.add(
+                Projectile(
+                    x = boss.x + (cos(angle) * boss.radius * 0.85f).toFloat(),
+                    y = boss.y + (sin(angle) * boss.radius * 0.85f).toFloat(),
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 20f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = ProjectileKind.BOSS_ORB
+                )
+            )
         }
     }
 
@@ -1377,9 +1467,14 @@ class BossBattleEngine(
                         emitSound(GameSoundEvent.ARMOR_BREAK)
                         spawnHitParticles(projectile.x, projectile.y, COLOR_VICTORY_SPARK, 20)
                         if (state.lolloTvHit && state.lolloSofaHit) {
-                            state.lolloIngolfatoTimer = LOLLO_INGOLFATO_DURATION
+                            state.lolloIngolfatoTimer = if (level.enableFuriousLollo) {
+                                FURIOUS_LOLLO_INGOLFATO_DURATION
+                            } else {
+                                LOLLO_INGOLFATO_DURATION
+                            }
                             state.lolloTvHit = false
                             state.lolloSofaHit = false
+                            state.lasers.clear()
                             state.phaseFlashTimer = 0.55f
                             emitSound(GameSoundEvent.BOSS_CHARGE)
                             spawnHitParticles(boss.x, boss.y, COLOR_SHIELD_BLOCK_SPARK, 28)
@@ -2416,6 +2511,10 @@ class BossBattleEngine(
         private const val TURRET_FIRE_INTERVAL = 2.8f
         private const val TURRET_BOLT_SPEED = 360f
         private const val LOLLO_INGOLFATO_DURATION = 6.5f
+        private const val FURIOUS_LOLLO_INGOLFATO_DURATION = 3.25f
+        private const val FURIOUS_LASER_FIRST_DELAY = 2.6f
+        private const val FURIOUS_LASER_INTERVAL = 3.4f
+        private const val FURIOUS_LASER_ENRAGED_INTERVAL = 2.4f
         private const val REFLECTED_FURNITURE_SPEED = 780f
 
         private const val PLATFORMER_MOVE_SPEED = 460f

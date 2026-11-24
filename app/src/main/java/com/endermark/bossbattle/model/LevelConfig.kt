@@ -40,6 +40,7 @@ data class BossLevel(
     val enableWeakPoints: Boolean = false,
     val enableTurretFortress: Boolean = false,
     val enableGiantLollo: Boolean = false,
+    val enableFuriousLollo: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -478,6 +479,29 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_25 = BossLevel(
+        id = 25,
+        title = "LIVELLO 25 • LOLLO INFURIATO",
+        bossName = "LOLLO GIGANTE INFURIATO",
+        subtitle = "Pad 360° • Ingolfato metà tempo, raggi laser ed esplosioni di rabbia!",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 320,
+        enableLasers = true,
+        enableMinions = false,
+        enableWeakPoints = false,
+        enableTurretFortress = false,
+        enableGiantLollo = true,
+        enableFuriousLollo = true,
+        bossBaseSpeed = 185f,
+        bossAttackInterval = 1.32f,
+        bossEnragedAttackInterval = 0.96f,
+        bossProjectileSpeed = 480f,
+        bossEnragedProjectileSpeed = 580f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -502,7 +526,8 @@ object LevelCatalog {
         LEVEL_21,
         LEVEL_22,
         LEVEL_23,
-        LEVEL_24
+        LEVEL_24,
+        LEVEL_25
     )
 
     fun findById(id: Int): BossLevel {

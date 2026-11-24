@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyFourLevels() {
-        assertEquals(24, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyFiveLevels() {
+        assertEquals(25, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -45,6 +45,14 @@ class BossBattleEngineTest {
         assertEquals("LOLLO ZURICH GIGANTE", level24.bossName)
         assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level24.mode)
         assertTrue(level24.enableGiantLollo)
+        assertFalse(level24.enableFuriousLollo)
+
+        val level25 = LevelCatalog.findById(25)
+        assertEquals("LOLLO GIGANTE INFURIATO", level25.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level25.mode)
+        assertTrue(level25.enableGiantLollo)
+        assertTrue(level25.enableFuriousLollo)
+        assertTrue(level25.enableLasers)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -751,5 +759,53 @@ class BossBattleEngineTest {
         )
         engine.update(0.016f)
         assertEquals(initialHp - 20, boss.hp)
+    }
+
+    @Test
+    fun levelTwentyFiveFuriousLolloHalfIngolfatoLasersAndRageBurst() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_25)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        // Advance time until Furious Lollo spawns a laser beam (> 2.6s)
+        repeat(60) { engine.update(0.05f) }
+        assertTrue(engine.state.lasers.isNotEmpty())
+
+        // Bounce TV + SOFA into Furious Lollo -> triggers half-duration INGOLFATO (3.25s) & clears lasers
+        engine.state.projectiles.clear()
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = -500f,
+                radius = 34f,
+                fromPlayer = true,
+                damage = 1,
+                kind = ProjectileKind.TV
+            )
+        )
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = -500f,
+                radius = 38f,
+                fromPlayer = true,
+                damage = 1,
+                kind = ProjectileKind.SOFA
+            )
+        )
+        engine.update(0.016f)
+        assertTrue(engine.state.isLolloIngolfato)
+        assertTrue(engine.state.lolloIngolfatoTimer in 3.0f..3.3f)
+        assertTrue(engine.state.lasers.isEmpty())
+
+        // Advance past 3.25s: ingolfato ends and Furious Lollo unleashes 8-way rage burst!
+        engine.state.projectiles.clear()
+        repeat(70) { engine.update(0.05f) }
+        assertFalse(engine.state.isLolloIngolfato)
+        assertTrue(engine.state.projectiles.count { !it.fromPlayer } >= 8)
     }
 }

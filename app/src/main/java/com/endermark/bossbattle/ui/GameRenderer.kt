@@ -2431,23 +2431,44 @@ class GameRenderer {
         val r = boss.radius
         val isHit = boss.hitFlashTimer > 0f
         val ingolfato = state.isLolloIngolfato
+        val furious = state.level.enableFuriousLollo
 
         // Invincibility forcefield while NOT ingolfato
         if (!ingolfato) {
             val shieldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(170, 0, 229, 255)
+                color = if (furious) Color.argb(190, 255, 61, 0) else Color.argb(170, 0, 229, 255)
                 style = Paint.Style.STROKE
-                strokeWidth = 10f
+                strokeWidth = if (furious) 12f else 10f
             }
-            val pulseR = r * (1.16f + 0.03f * sin(state.elapsedTime * 7f))
+            val pulseR = r * (1.16f + 0.04f * sin(state.elapsedTime * if (furious) 12f else 7f))
             canvas.drawCircle(x, y, pulseR, shieldPaint)
             canvas.drawCircle(x, y, pulseR * 0.94f, shieldAuraPaint)
+        }
+
+        // Animated rage flames on top of bald scalp + steam from ears when Furious!
+        if (furious && !ingolfato) {
+            for (i in -2..2) {
+                val fx = x + i * (r * 0.30f)
+                val flicker = sin(state.elapsedTime * 16f + i * 1.4f) * 18f
+                bossCorePaint.color = if (i % 2 == 0) Color.parseColor("#FF3D00") else Color.parseColor("#FFAB00")
+                tempPath.reset()
+                tempPath.moveTo(fx - 26f, y - r * 0.84f)
+                tempPath.lineTo(fx, y - r * 1.38f + flicker)
+                tempPath.lineTo(fx + 26f, y - r * 0.84f)
+                tempPath.close()
+                canvas.drawPath(tempPath, bossCorePaint)
+            }
+            // Steam puffs shooting from both ears
+            val puff = 14f + sin(state.elapsedTime * 14f) * 6f
+            canvas.drawCircle(x - r * 1.24f, y - r * 0.02f, puff, swissCrossWhitePaint)
+            canvas.drawCircle(x + r * 1.24f, y - r * 0.02f, puff, swissCrossWhitePaint)
         }
 
         // Giant ears
         val skinColor = when {
             isHit -> Color.WHITE
             ingolfato -> Color.parseColor("#FFAB91")
+            furious -> Color.parseColor("#FF8A65")
             else -> Color.parseColor("#FFCC99")
         }
         bossArmorPaint.color = skinColor
@@ -2498,12 +2519,20 @@ class GameRenderer {
                 canvas.drawCircle(sx, sy, 10f, hanoiLanternGoldPaint)
             }
         } else {
-            // Angry eyebrows & glaring eyes
+            // Angry eyebrows & glaring eyes (blazing laser-red when Furious!)
             val eyeY = y - r * 0.12f
-            canvas.drawCircle(x - r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
-            canvas.drawCircle(x + r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
-            canvas.drawCircle(x - r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
-            canvas.drawCircle(x + r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
+            if (furious) {
+                bossCorePaint.color = Color.parseColor("#FF1744")
+                canvas.drawCircle(x - r * 0.34f, eyeY, 22f, bossCorePaint)
+                canvas.drawCircle(x + r * 0.34f, eyeY, 22f, bossCorePaint)
+                canvas.drawCircle(x - r * 0.34f, eyeY, 10f, hanoiLanternGoldPaint)
+                canvas.drawCircle(x + r * 0.34f, eyeY, 10f, hanoiLanternGoldPaint)
+            } else {
+                canvas.drawCircle(x - r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
+                canvas.drawCircle(x + r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
+                canvas.drawCircle(x - r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
+                canvas.drawCircle(x + r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
+            }
 
             // Furrowed angry brows
             canvas.drawLine(x - r * 0.56f, eyeY - 26f, x - r * 0.14f, eyeY - 12f, bossOutlinePaint)
@@ -2523,7 +2552,8 @@ class GameRenderer {
         } else {
             val tvState = if (state.lolloTvHit) "OK" else "MANCA"
             val sofaState = if (state.lolloSofaHit) "OK" else "MANCA"
-            "INVINCIBILE • TV: $tvState • DIVANO: $sofaState"
+            val prefix = if (furious) "INFURIATO" else "INVINCIBILE"
+            "$prefix • TV: $tvState • DIVANO: $sofaState"
         }
         phaseBadgePaint.textAlign = Paint.Align.RIGHT
         canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)

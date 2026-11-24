@@ -22,6 +22,7 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **
 - **Livello 22 • PUNTI DEBOLI — `CORAZZATA AEGIS`**: Volo libero 360° senza scagnozzi. La corazzata è **invincibile** finché non distruggi i suoi **3 punti deboli** (1 dietro e 2 ai lati), dopodiché perde lo scudo e può essere danneggiata.
 - **Livello 23 • FORTEZZA ORBITALE — `BASTIONE ORBITALE`**: Volo libero 360° circondato da **8 torrette difensive** disposte tutt'attorno all'arena che sparano verso il giocatore. Una volta distrutte tutte le torrette, si sblocca la **super-torretta boss in alto** con la vera barra della vita e potenti salve al plasma.
 - **Livello 24 • LOLLO GIGANTE — `LOLLO ZURICH GIGANTE`**: Enorme testa pelata in volo libero 360° che attacca lanciando **computer, divani e televisioni**. Lollo è invincibile finché non respingi contro di lui sia una **TV** sia un **Divano**: entra allora in stato **INGOLFATO** e diventa vulnerabile ai colpi!
+- **Livello 25 • LOLLO INFURIATO — `LOLLO GIGANTE INFURIATO`**: Versione infuocata e più difficile di Lollo Gigante con fiamme sulla pelata, vapore dalle orecchie, **raggi laser telegrafati** (e a croce sotto il 50% HP), stato **INGOLFATO dimezzato** (`3.25s`) ed **esplosione radiale di rabbia** appena si riprende!
 - **Controlli Audio**: barra volume e toggle separati per **Musica** ed **Effetti (SFX)** disponibili sia nel menù livelli sia in battaglia.
 
 ## Build e Test
