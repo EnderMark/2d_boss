@@ -19,6 +19,7 @@ import com.endermark.bossbattle.model.ProjectileKind
 import com.endermark.bossbattle.model.WeaponType
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -538,12 +539,14 @@ class GameRenderer {
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.DEEP_SPACE -> {
-                    if (state.level.enableTurretFortress) {
-                        drawMegaTurretBoss(canvas, state)
-                    } else {
-                        drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime, state.hasActiveWeakPoints)
-                        if (state.weakPoints.isNotEmpty()) {
-                            drawWeakPoints(canvas, state)
+                    when {
+                        state.level.enableGiantLollo -> drawGiantLolloBoss(canvas, state)
+                        state.level.enableTurretFortress -> drawMegaTurretBoss(canvas, state)
+                        else -> {
+                            drawDreadnoughtBoss(canvas, state.boss, state.elapsedTime, state.hasActiveWeakPoints)
+                            if (state.weakPoints.isNotEmpty()) {
+                                drawWeakPoints(canvas, state)
+                            }
                         }
                     }
                 }
@@ -1418,6 +1421,72 @@ class GameRenderer {
                     canvas.drawOval(tempRect, droneBodyPaint)
                     canvas.drawOval(tempRect, shockwavePaint)
                     canvas.drawCircle(x, y, r * 0.42f, shockwaveCorePaint)
+                }
+                ProjectileKind.COMPUTER -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    // Laptop screen
+                    bossArmorPaint.color = Color.parseColor("#37474F")
+                    tempRect.set(x - r, y - r * 0.82f, x + r, y + r * 0.25f)
+                    canvas.drawRoundRect(tempRect, 6f, 6f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 6f, 6f, bossOutlinePaint)
+                    // Glowing blue display
+                    bossCorePaint.color = Color.parseColor("#40C4FF")
+                    tempRect.set(x - r * 0.82f, y - r * 0.65f, x + r * 0.82f, y + r * 0.12f)
+                    canvas.drawRect(tempRect, bossCorePaint)
+                    // Keyboard base
+                    bossArmorPaint.color = Color.parseColor("#78909C")
+                    tempRect.set(x - r * 1.18f, y + r * 0.25f, x + r * 1.18f, y + r * 0.60f)
+                    canvas.drawRoundRect(tempRect, 5f, 5f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 5f, 5f, bossOutlinePaint)
+                }
+                ProjectileKind.TV -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    // Glowing reflectable aura (gold incoming, cyan when bounced back!)
+                    val auraPaint = if (projectile.fromPlayer) controlShieldBorderPaint else controlAttackBorderPaint
+                    canvas.drawCircle(x, y, r * 1.18f, auraPaint)
+                    // Rabbit-ear antennas
+                    canvas.drawLine(x - 6f, y - r * 0.72f, x - r * 0.55f, y - r * 1.25f, bossOutlinePaint)
+                    canvas.drawLine(x + 6f, y - r * 0.72f, x + r * 0.55f, y - r * 1.25f, bossOutlinePaint)
+                    // TV cabinet
+                    bossArmorPaint.color = Color.parseColor("#263238")
+                    tempRect.set(x - r * 0.96f, y - r * 0.72f, x + r * 0.96f, y + r * 0.72f)
+                    canvas.drawRoundRect(tempRect, 10f, 10f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 10f, 10f, bossOutlinePaint)
+                    // Screen
+                    bossCorePaint.color = if (projectile.fromPlayer) Color.parseColor("#00E5FF") else Color.parseColor("#90CAF9")
+                    tempRect.set(x - r * 0.74f, y - r * 0.52f, x + r * 0.52f, y + r * 0.52f)
+                    canvas.drawRoundRect(tempRect, 6f, 6f, bossCorePaint)
+                    // Knobs
+                    canvas.drawCircle(x + r * 0.72f, y - r * 0.2f, 5f, hanoiLanternGoldPaint)
+                    canvas.drawCircle(x + r * 0.72f, y + r * 0.2f, 5f, hanoiLanternGoldPaint)
+                }
+                ProjectileKind.SOFA -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    val auraPaint = if (projectile.fromPlayer) controlShieldBorderPaint else controlAttackBorderPaint
+                    canvas.drawCircle(x, y, r * 1.15f, auraPaint)
+                    // Sofa backrest
+                    bossArmorPaint.color = if (projectile.fromPlayer) Color.parseColor("#00ACC1") else Color.parseColor("#C62828")
+                    tempRect.set(x - r * 0.98f, y - r * 0.65f, x + r * 0.98f, y + r * 0.15f)
+                    canvas.drawRoundRect(tempRect, 12f, 12f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 12f, 12f, bossOutlinePaint)
+                    // Seat cushions
+                    bossCorePaint.color = if (projectile.fromPlayer) Color.parseColor("#26C6DA") else Color.parseColor("#E53935")
+                    tempRect.set(x - r * 0.85f, y - r * 0.05f, x + r * 0.85f, y + r * 0.52f)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossCorePaint)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossOutlinePaint)
+                    // Armrests
+                    tempRect.set(x - r * 1.08f, y - r * 0.22f, x - r * 0.72f, y + r * 0.52f)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossOutlinePaint)
+                    tempRect.set(x + r * 0.72f, y - r * 0.22f, x + r * 1.08f, y + r * 0.52f)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossArmorPaint)
+                    canvas.drawRoundRect(tempRect, 8f, 8f, bossOutlinePaint)
                 }
                 ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
@@ -2353,6 +2422,112 @@ class GameRenderer {
             canvas.drawCircle(x, y, r * 0.36f, bossCorePaint)
             canvas.drawCircle(x, y, r * 0.16f, swissCrossWhitePaint)
         }
+    }
+
+    private fun drawGiantLolloBoss(canvas: Canvas, state: GameState) {
+        val boss = state.boss
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val ingolfato = state.isLolloIngolfato
+
+        // Invincibility forcefield while NOT ingolfato
+        if (!ingolfato) {
+            val shieldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(170, 0, 229, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 10f
+            }
+            val pulseR = r * (1.16f + 0.03f * sin(state.elapsedTime * 7f))
+            canvas.drawCircle(x, y, pulseR, shieldPaint)
+            canvas.drawCircle(x, y, pulseR * 0.94f, shieldAuraPaint)
+        }
+
+        // Giant ears
+        val skinColor = when {
+            isHit -> Color.WHITE
+            ingolfato -> Color.parseColor("#FFAB91")
+            else -> Color.parseColor("#FFCC99")
+        }
+        bossArmorPaint.color = skinColor
+        canvas.drawCircle(x - r * 0.92f, y + r * 0.05f, r * 0.22f, bossArmorPaint)
+        canvas.drawCircle(x - r * 0.92f, y + r * 0.05f, r * 0.22f, bossOutlinePaint)
+        canvas.drawCircle(x + r * 0.92f, y + r * 0.05f, r * 0.22f, bossArmorPaint)
+        canvas.drawCircle(x + r * 0.92f, y + r * 0.05f, r * 0.22f, bossOutlinePaint)
+
+        // Enormous bald head oval
+        tempRect.set(x - r * 0.92f, y - r * 1.04f, x + r * 0.92f, y + r * 0.98f)
+        canvas.drawOval(tempRect, bossArmorPaint)
+        canvas.drawOval(tempRect, bossOutlinePaint)
+
+        // Shiny bald scalp highlight
+        tempRect.set(x - r * 0.45f, y - r * 0.85f, x + r * 0.12f, y - r * 0.48f)
+        canvas.drawOval(tempRect, swissCrossWhitePaint)
+
+        // Beard stubble shadow around jaw
+        bossCorePaint.color = Color.argb(70, 93, 64, 55)
+        tempRect.set(x - r * 0.72f, y + r * 0.22f, x + r * 0.72f, y + r * 0.92f)
+        canvas.drawArc(tempRect, 10f, 160f, true, bossCorePaint)
+
+        if (ingolfato) {
+            // Dizzy X-eyes + flushed cheeks + spinning stars!
+            val eyeY = y - r * 0.12f
+            val leftEyeX = x - r * 0.34f
+            val rightEyeX = x + r * 0.34f
+            val s = 18f
+            canvas.drawLine(leftEyeX - s, eyeY - s, leftEyeX + s, eyeY + s, bossOutlinePaint)
+            canvas.drawLine(leftEyeX + s, eyeY - s, leftEyeX - s, eyeY + s, bossOutlinePaint)
+            canvas.drawLine(rightEyeX - s, eyeY - s, rightEyeX + s, eyeY + s, bossOutlinePaint)
+            canvas.drawLine(rightEyeX + s, eyeY - s, rightEyeX - s, eyeY + s, bossOutlinePaint)
+
+            // Puffy flushed cheeks ("ingolfato")
+            bossCorePaint.color = Color.argb(140, 229, 57, 53)
+            canvas.drawCircle(x - r * 0.48f, y + r * 0.22f, r * 0.22f, bossCorePaint)
+            canvas.drawCircle(x + r * 0.48f, y + r * 0.22f, r * 0.22f, bossCorePaint)
+
+            // Stuffed/dizzy mouth
+            tempRect.set(x - r * 0.26f, y + r * 0.36f, x + r * 0.26f, y + r * 0.62f)
+            canvas.drawOval(tempRect, chanHairPaint)
+
+            // Orbiting golden dizzy stars above bald head
+            for (i in 0 until 4) {
+                val a = state.elapsedTime * 5.2f + i * 1.57f
+                val sx = x + cos(a) * (r * 0.72f)
+                val sy = y - r * 1.10f + sin(a) * 18f
+                canvas.drawCircle(sx, sy, 10f, hanoiLanternGoldPaint)
+            }
+        } else {
+            // Angry eyebrows & glaring eyes
+            val eyeY = y - r * 0.12f
+            canvas.drawCircle(x - r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
+            canvas.drawCircle(x + r * 0.34f, eyeY, 18f, swissCrossWhitePaint)
+            canvas.drawCircle(x - r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
+            canvas.drawCircle(x + r * 0.34f, eyeY + 3f, 8f, chanHairPaint)
+
+            // Furrowed angry brows
+            canvas.drawLine(x - r * 0.56f, eyeY - 26f, x - r * 0.14f, eyeY - 12f, bossOutlinePaint)
+            canvas.drawLine(x + r * 0.56f, eyeY - 26f, x + r * 0.14f, eyeY - 12f, bossOutlinePaint)
+
+            // Wide yelling mouth
+            bossCorePaint.color = Color.parseColor("#B71C1C")
+            tempRect.set(x - r * 0.38f, y + r * 0.30f, x + r * 0.38f, y + r * 0.68f)
+            canvas.drawOval(tempRect, bossCorePaint)
+            canvas.drawOval(tempRect, bossOutlinePaint)
+        }
+
+        // Status banner right under boss HP bar
+        val statusText = if (ingolfato) {
+            val secs = (state.lolloIngolfatoTimer * 10f).toInt() / 10f
+            "INGOLFATO! (${secs}s) • COLPISCI LA TESTA PELATA!"
+        } else {
+            val tvState = if (state.lolloTvHit) "OK" else "MANCA"
+            val sofaState = if (state.lolloSofaHit) "OK" else "MANCA"
+            "INVINCIBILE • TV: $tvState • DIVANO: $sofaState"
+        }
+        phaseBadgePaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)
+        phaseBadgePaint.textAlign = Paint.Align.LEFT
     }
 
     private fun drawMinions(canvas: Canvas, state: GameState) {

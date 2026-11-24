@@ -28,7 +28,10 @@ enum class ProjectileKind {
     SCREAM_WAVE,
     RICE_CHICKEN,
     DATING_FLEX,
-    HOT_STONE
+    HOT_STONE,
+    COMPUTER,
+    SOFA,
+    TV
 }
 
 enum class WeaponType(val displayName: String) {
@@ -247,16 +250,19 @@ data class Boss(
 data class Projectile(
     var x: Float,
     var y: Float,
-    val vx: Float,
-    val vy: Float,
+    var vx: Float,
+    var vy: Float,
     val radius: Float,
-    val fromPlayer: Boolean,
+    var fromPlayer: Boolean,
     val damage: Int,
     val kind: ProjectileKind = if (fromPlayer) ProjectileKind.PLAYER_BOLT else ProjectileKind.BOSS_ORB,
     val label: String? = null
 ) {
     val isShockwave: Boolean
         get() = kind == ProjectileKind.SHOCKWAVE
+
+    val isReflectableFurniture: Boolean
+        get() = kind == ProjectileKind.TV || kind == ProjectileKind.SOFA
 }
 
 data class HitParticle(
@@ -289,6 +295,9 @@ data class GameState(
     var elapsedTime: Float = 0f,
     var endStateCooldown: Float = 0f,
     var phaseFlashTimer: Float = 0f,
+    var lolloTvHit: Boolean = false,
+    var lolloSofaHit: Boolean = false,
+    var lolloIngolfatoTimer: Float = 0f,
     val groundY: Float = 1260f
 ) {
     val hasActiveWeakPoints: Boolean
@@ -296,4 +305,7 @@ data class GameState(
 
     val hasActiveTurrets: Boolean
         get() = turrets.any { !it.isDestroyed }
+
+    val isLolloIngolfato: Boolean
+        get() = lolloIngolfatoTimer > 0f
 }

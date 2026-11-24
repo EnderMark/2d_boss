@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyThreeLevels() {
-        assertEquals(23, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyFourLevels() {
+        assertEquals(24, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -40,6 +40,11 @@ class BossBattleEngineTest {
         assertFalse(level23.enableMinions)
         assertFalse(level23.enableWeakPoints)
         assertTrue(level23.enableTurretFortress)
+
+        val level24 = LevelCatalog.findById(24)
+        assertEquals("LOLLO ZURICH GIGANTE", level24.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level24.mode)
+        assertTrue(level24.enableGiantLollo)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -645,5 +650,106 @@ class BossBattleEngineTest {
         boss.attackCooldown = 0.01f
         engine.update(0.02f)
         assertTrue(engine.state.projectiles.count { !it.fromPlayer } >= 5)
+    }
+
+    @Test
+    fun levelTwentyFourGiantLolloIngolfatoByTvAndSofa() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_24)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        assertFalse(engine.state.isLolloIngolfato)
+
+        // Attack cycle produces TV, SOFA, and COMPUTER
+        boss.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.TV })
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.COMPUTER })
+
+        boss.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.SOFA })
+
+        // Normal player bolt deals 0 damage while NOT ingolfato
+        val initialHp = boss.hp
+        engine.state.projectiles.clear()
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 20
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp, boss.hp)
+
+        // Shooting a hostile TV reflects it back toward Lollo
+        val tv = Projectile(
+            x = boss.x,
+            y = boss.y + 320f,
+            vx = 0f,
+            vy = 300f,
+            radius = 34f,
+            fromPlayer = false,
+            damage = 1,
+            kind = ProjectileKind.TV
+        )
+        val bolt = Projectile(
+            x = tv.x,
+            y = tv.y,
+            vx = 0f,
+            vy = -500f,
+            radius = 12f,
+            fromPlayer = true,
+            damage = 8,
+            kind = ProjectileKind.PLAYER_BOLT
+        )
+        engine.state.projectiles.add(tv)
+        engine.state.projectiles.add(bolt)
+        engine.update(0.016f)
+        assertTrue(tv.fromPlayer)
+        assertTrue(tv.vy < 0f)
+
+        // Bounce TV into Lollo -> lolloTvHit = true, not ingolfato yet
+        tv.x = boss.x
+        tv.y = boss.y
+        engine.update(0.016f)
+        assertTrue(engine.state.lolloTvHit)
+        assertFalse(engine.state.isLolloIngolfato)
+
+        // Bounce SOFA into Lollo -> triggers INGOLFATO!
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = -500f,
+                radius = 38f,
+                fromPlayer = true,
+                damage = 1,
+                kind = ProjectileKind.SOFA
+            )
+        )
+        engine.update(0.016f)
+        assertTrue(engine.state.isLolloIngolfato)
+
+        // Now player bolt damages Giant Lollo!
+        engine.state.projectiles.add(
+            Projectile(
+                x = boss.x,
+                y = boss.y,
+                vx = 0f,
+                vy = 0f,
+                radius = 12f,
+                fromPlayer = true,
+                damage = 20
+            )
+        )
+        engine.update(0.016f)
+        assertEquals(initialHp - 20, boss.hp)
     }
 }

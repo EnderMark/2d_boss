@@ -46,6 +46,7 @@ class BossBattleEngine(
     private var complaintIndex: Int = 0
     private var pickupSpawnTimer: Float = PICKUP_FIRST_SPAWN_DELAY
     private var pickupSequenceIndex: Int = 0
+    private var giantLolloAttackIndex: Int = 0
     private val pendingSoundEvents: MutableList<GameSoundEvent> = mutableListOf()
 
     fun drainSoundEvents(): List<GameSoundEvent> {
@@ -178,6 +179,9 @@ class BossBattleEngine(
         state.joystickX = 0f
         state.joystickY = 0f
         state.phaseFlashTimer = 0f
+        state.lolloTvHit = false
+        state.lolloSofaHit = false
+        state.lolloIngolfatoTimer = 0f
         pendingSoundEvents.clear()
         moveInput = 0
         isFiring = false
@@ -186,6 +190,7 @@ class BossBattleEngine(
         complaintIndex = 0
         pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY
         pickupSequenceIndex = 0
+        giantLolloAttackIndex = 0
 
         if (level.enablePlatforms) {
             populateInitialPlatforms()
@@ -439,6 +444,32 @@ class BossBattleEngine(
             return
         }
 
+        if (level.enableGiantLollo) {
+            if (state.lolloIngolfatoTimer > 0f) {
+                state.lolloIngolfatoTimer = max(0f, state.lolloIngolfatoTimer - dt)
+                boss.x = (boss.x + sin(state.elapsedTime * 18f) * 38f * dt)
+                    .coerceIn(boss.radius + ARENA_PADDING, state.worldWidth - boss.radius - ARENA_PADDING)
+                return
+            }
+            val speedScale = if (boss.isEnraged) 1.25f else 1.0f
+            val t = state.elapsedTime * speedScale
+            val targetX = state.worldWidth * 0.5f + sin(t * 0.65f) * 250f
+            val targetY = 435f + sin(t * 1.25f) * 85f
+            boss.x += (targetX - boss.x) * (2.8f * dt).coerceAtMost(1f)
+            boss.y += (targetY - boss.y) * (2.8f * dt).coerceAtMost(1f)
+
+            boss.attackCooldown -= dt
+            if (boss.attackCooldown <= 0f) {
+                spawnGiantLolloSalvo()
+                boss.attackCooldown = if (boss.isEnraged) {
+                    level.bossEnragedAttackInterval
+                } else {
+                    level.bossAttackInterval
+                }
+            }
+            return
+        }
+
         // Smooth orbital figure-8 flight across upper-central space
         val speedScale = if (boss.isEnraged) 1.35f else 1.0f
         val t = state.elapsedTime * speedScale
@@ -462,6 +493,99 @@ class BossBattleEngine(
             if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
                 spawnMinionShip()
                 minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+            }
+        }
+    }
+
+    private fun spawnGiantLolloSalvo() {
+        val boss = state.boss
+        val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
+        val speed = if (boss.isEnraged) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - boss.y).toDouble(), (player.x - boss.x).toDouble())
+        val step = giantLolloAttackIndex % 3
+        giantLolloAttackIndex += 1
+
+        when (step) {
+            0 -> {
+                // Aimed TV (reflectable!) + flanking Computer
+                state.projectiles.add(
+                    Projectile(
+                        x = boss.x + (cos(baseAngle) * boss.radius * 0.72f).toFloat(),
+                        y = boss.y + (sin(baseAngle) * boss.radius * 0.72f).toFloat(),
+                        vx = (cos(baseAngle) * speed * 0.82f).toFloat(),
+                        vy = (sin(baseAngle) * speed * 0.82f).toFloat(),
+                        radius = 34f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.TV,
+                        label = "TV"
+                    )
+                )
+                val sideAngle = baseAngle + 0.34
+                state.projectiles.add(
+                    Projectile(
+                        x = boss.x + (cos(sideAngle) * boss.radius * 0.72f).toFloat(),
+                        y = boss.y + (sin(sideAngle) * boss.radius * 0.72f).toFloat(),
+                        vx = (cos(sideAngle) * speed).toFloat(),
+                        vy = (sin(sideAngle) * speed).toFloat(),
+                        radius = 26f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.COMPUTER,
+                        label = "PC"
+                    )
+                )
+            }
+            1 -> {
+                // Aimed Sofa (reflectable!) + flanking Computer
+                state.projectiles.add(
+                    Projectile(
+                        x = boss.x + (cos(baseAngle) * boss.radius * 0.72f).toFloat(),
+                        y = boss.y + (sin(baseAngle) * boss.radius * 0.72f).toFloat(),
+                        vx = (cos(baseAngle) * speed * 0.80f).toFloat(),
+                        vy = (sin(baseAngle) * speed * 0.80f).toFloat(),
+                        radius = 38f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.SOFA,
+                        label = "DIVANO"
+                    )
+                )
+                val sideAngle = baseAngle - 0.34
+                state.projectiles.add(
+                    Projectile(
+                        x = boss.x + (cos(sideAngle) * boss.radius * 0.72f).toFloat(),
+                        y = boss.y + (sin(sideAngle) * boss.radius * 0.72f).toFloat(),
+                        vx = (cos(sideAngle) * speed).toFloat(),
+                        vy = (sin(sideAngle) * speed).toFloat(),
+                        radius = 26f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.COMPUTER,
+                        label = "PC"
+                    )
+                )
+            }
+            else -> {
+                // Spread of flying Computers
+                val offsets = if (boss.isEnraged) listOf(-0.36, 0.0, 0.36) else listOf(-0.24, 0.24)
+                for (offset in offsets) {
+                    val angle = baseAngle + offset
+                    state.projectiles.add(
+                        Projectile(
+                            x = boss.x + (cos(angle) * boss.radius * 0.72f).toFloat(),
+                            y = boss.y + (sin(angle) * boss.radius * 0.72f).toFloat(),
+                            vx = (cos(angle) * speed * 1.05f).toFloat(),
+                            vy = (sin(angle) * speed * 1.05f).toFloat(),
+                            radius = 26f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.COMPUTER,
+                            label = "PC"
+                        )
+                    )
+                }
             }
         }
     }
@@ -1128,6 +1252,30 @@ class BossBattleEngine(
             }
         }
 
+        // Level 24 Giant Lollo: player bolts bounce TV and Sofa back at Lollo's giant bald head!
+        if (level.enableGiantLollo) {
+            val boltsToRemove = mutableListOf<Projectile>()
+            for (bolt in state.projectiles) {
+                if (!bolt.fromPlayer || bolt.kind != ProjectileKind.PLAYER_BOLT) continue
+                for (furniture in state.projectiles) {
+                    if (furniture.fromPlayer || !furniture.isReflectableFurniture) continue
+                    if (circlesCollide(bolt.x, bolt.y, bolt.radius, furniture.x, furniture.y, furniture.radius)) {
+                        boltsToRemove.add(bolt)
+                        furniture.fromPlayer = true
+                        val angleToBoss = atan2((boss.y - furniture.y).toDouble(), (boss.x - furniture.x).toDouble())
+                        furniture.vx = (cos(angleToBoss) * REFLECTED_FURNITURE_SPEED).toFloat()
+                        furniture.vy = (sin(angleToBoss) * REFLECTED_FURNITURE_SPEED).toFloat()
+                        emitSound(GameSoundEvent.SHIELD_BLOCK)
+                        spawnHitParticles(furniture.x, furniture.y, COLOR_SHIELD_BLOCK_SPARK, 12)
+                        break
+                    }
+                }
+            }
+            if (boltsToRemove.isNotEmpty()) {
+                state.projectiles.removeAll(boltsToRemove)
+            }
+        }
+
         val iterator = state.projectiles.iterator()
         while (iterator.hasNext()) {
             val projectile = iterator.next()
@@ -1219,15 +1367,35 @@ class BossBattleEngine(
                     )
                 ) {
                     iterator.remove()
-                    val isBossProtected = state.hasActiveWeakPoints ||
-                        (level.enableTurretFortress && state.hasActiveTurrets)
-                    if (isBossProtected) {
-                        emitSound(GameSoundEvent.SHIELD_BLOCK)
-                        spawnHitParticles(projectile.x, projectile.y, COLOR_ARMOR_SPARK, 8)
+                    if (level.enableGiantLollo && projectile.isReflectableFurniture) {
+                        if (projectile.kind == ProjectileKind.TV) {
+                            state.lolloTvHit = true
+                        } else if (projectile.kind == ProjectileKind.SOFA) {
+                            state.lolloSofaHit = true
+                        }
+                        boss.hitFlashTimer = 0.14f
+                        emitSound(GameSoundEvent.ARMOR_BREAK)
+                        spawnHitParticles(projectile.x, projectile.y, COLOR_VICTORY_SPARK, 20)
+                        if (state.lolloTvHit && state.lolloSofaHit) {
+                            state.lolloIngolfatoTimer = LOLLO_INGOLFATO_DURATION
+                            state.lolloTvHit = false
+                            state.lolloSofaHit = false
+                            state.phaseFlashTimer = 0.55f
+                            emitSound(GameSoundEvent.BOSS_CHARGE)
+                            spawnHitParticles(boss.x, boss.y, COLOR_SHIELD_BLOCK_SPARK, 28)
+                        }
                     } else {
-                        applyDamageToBoss(projectile.damage, projectile.x, projectile.y)
-                        if (state.status != GameStatus.PLAYING) {
-                            return
+                        val isBossProtected = state.hasActiveWeakPoints ||
+                            (level.enableTurretFortress && state.hasActiveTurrets) ||
+                            (level.enableGiantLollo && !state.isLolloIngolfato)
+                        if (isBossProtected) {
+                            emitSound(GameSoundEvent.SHIELD_BLOCK)
+                            spawnHitParticles(projectile.x, projectile.y, COLOR_ARMOR_SPARK, 8)
+                        } else {
+                            applyDamageToBoss(projectile.damage, projectile.x, projectile.y)
+                            if (state.status != GameStatus.PLAYING) {
+                                return
+                            }
                         }
                     }
                 }
@@ -2175,20 +2343,21 @@ class BossBattleEngine(
     ): GameState {
         val isMelee = level.mode == BattleMode.MELEE_PLATFORMER
         val playerRadius = 36f
-        val bossRadius = when (level.arenaTheme) {
-            ArenaTheme.HANOI -> 64f
-            ArenaTheme.HANOI_SPA -> 68f
-            ArenaTheme.OMEGA_FINALE -> 82f
-            ArenaTheme.DEEP_SPACE -> 104f
-            ArenaTheme.ZURICH -> 66f
-            ArenaTheme.STUDIO -> 74f
-            ArenaTheme.ZURICH_TAX -> 68f
-            ArenaTheme.PARIS -> 62f
-            ArenaTheme.UBS_ALPS -> 64f
-            ArenaTheme.GYM_DEV -> 58f
-            ArenaTheme.GOOGLE_ZURICH -> 82f
-            ArenaTheme.IRON_ARENA -> 84f
-            ArenaTheme.SPACE -> 88f
+        val bossRadius = when {
+            level.enableGiantLollo -> 128f
+            level.arenaTheme == ArenaTheme.HANOI -> 64f
+            level.arenaTheme == ArenaTheme.HANOI_SPA -> 68f
+            level.arenaTheme == ArenaTheme.OMEGA_FINALE -> 82f
+            level.arenaTheme == ArenaTheme.DEEP_SPACE -> 104f
+            level.arenaTheme == ArenaTheme.ZURICH -> 66f
+            level.arenaTheme == ArenaTheme.STUDIO -> 74f
+            level.arenaTheme == ArenaTheme.ZURICH_TAX -> 68f
+            level.arenaTheme == ArenaTheme.PARIS -> 62f
+            level.arenaTheme == ArenaTheme.UBS_ALPS -> 64f
+            level.arenaTheme == ArenaTheme.GYM_DEV -> 58f
+            level.arenaTheme == ArenaTheme.GOOGLE_ZURICH -> 82f
+            level.arenaTheme == ArenaTheme.IRON_ARENA -> 84f
+            else -> 88f
         }
         return GameState(
             level = level,
@@ -2246,6 +2415,8 @@ class BossBattleEngine(
         private const val FORTRESS_BOSS_Y = 285f
         private const val TURRET_FIRE_INTERVAL = 2.8f
         private const val TURRET_BOLT_SPEED = 360f
+        private const val LOLLO_INGOLFATO_DURATION = 6.5f
+        private const val REFLECTED_FURNITURE_SPEED = 780f
 
         private const val PLATFORMER_MOVE_SPEED = 460f
         private const val SHIELD_MOVE_MULTIPLIER = 0.55f

@@ -21,6 +21,7 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **
 - **Livello 21 • SPAZIO 360° — `DREADNOUGHT STELLARE`**: Volo libero su tutto lo schermo con **pad analogico virtuale** (movimento 360° + rotazione) e pulsante **FUOCO**, contro una grande astronave boss che spara salve al plasma e genera **piccole navicelle scagnozze** abbattibili (spawn bilanciato -50%).
 - **Livello 22 • PUNTI DEBOLI — `CORAZZATA AEGIS`**: Volo libero 360° senza scagnozzi. La corazzata è **invincibile** finché non distruggi i suoi **3 punti deboli** (1 dietro e 2 ai lati), dopodiché perde lo scudo e può essere danneggiata.
 - **Livello 23 • FORTEZZA ORBITALE — `BASTIONE ORBITALE`**: Volo libero 360° circondato da **8 torrette difensive** disposte tutt'attorno all'arena che sparano verso il giocatore. Una volta distrutte tutte le torrette, si sblocca la **super-torretta boss in alto** con la vera barra della vita e potenti salve al plasma.
+- **Livello 24 • LOLLO GIGANTE — `LOLLO ZURICH GIGANTE`**: Enorme testa pelata in volo libero 360° che attacca lanciando **computer, divani e televisioni**. Lollo è invincibile finché non respingi contro di lui sia una **TV** sia un **Divano**: entra allora in stato **INGOLFATO** e diventa vulnerabile ai colpi!
 - **Controlli Audio**: barra volume e toggle separati per **Musica** ed **Effetti (SFX)** disponibili sia nel menù livelli sia in battaglia.
 
 ## Build e Test
