@@ -26,7 +26,9 @@ Gioco 2D incentrato su **Boss Battle** in **Kotlin Multiplatform**:
 17. **Livello 21 • BOARD OF DIRECTORS — `LOLLO ZURICH + IVANONE`**: Doppio boss simultaneo con due barre HP e modalità Super-CEO.
 18. **Livello 22 • BOARD PLATFORM — `LOLLO ZURICH + IVANONE` (Platform + Pistola)**: Omino platform con pistola (`SPARA`), piattaforme mobili e 3 fasi.
 
-## Build e Deploy (Android + Web / Cloudflare Pages)
+## Build e Deploy (Android + Web / GitHub Pages)
+
+- **Web App live su GitHub Pages**: https://endermark.github.io/2d_boss/ (aggiornata automaticamente ad ogni push su `main` tramite [`.github/workflows/web-deploy.yml`](.github/workflows/web-deploy.yml)).
 
 ```bash
 # Test e APK Android
@@ -35,8 +37,3 @@ Gioco 2D incentrato su **Boss Battle** in **Kotlin Multiplatform**:
 # Bundle Web Kotlin/JS (output in web/build/dist/js/productionExecutable/)
 ./gradlew :web:jsBrowserDistribution
 ```
-
-### Deploy automatico su Cloudflare Pages
-Il workflow [`.github/workflows/web-deploy.yml`](.github/workflows/web-deploy.yml) compila automaticamente la webapp ad ogni push su `main` e la pubblica sul progetto Cloudflare Pages `2d-boss-battle` appena aggiungi questi 2 secret nelle impostazioni del repo GitHub (`Settings → Secrets and variables → Actions`):
-- `CLOUDFLARE_API_TOKEN` (API Token Cloudflare con permesso *Cloudflare Pages: Edit*)
-- `CLOUDFLARE_ACCOUNT_ID` (il tuo Account ID Cloudflare)
