@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentySixLevels() {
-        assertEquals(26, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentySevenLevels() {
+        assertEquals(27, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -60,6 +60,11 @@ class BossBattleEngineTest {
         assertTrue(level26.multiPhase)
         assertTrue(level26.enableMinions)
         assertTrue(level26.enableTechLeadLollo)
+
+        val level27 = LevelCatalog.findById(27)
+        assertEquals("BOARD OF DIRECTORS", level27.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level27.mode)
+        assertTrue(level27.enableBoardOfDirectors)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -873,5 +878,48 @@ class BossBattleEngineTest {
         boss.attackCooldown = 0.01f
         engine.update(0.02f)
         assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.FART_CLOUD })
+    }
+
+    @Test
+    fun levelTwentySevenBoardOfDirectorsDualHealthBarsAndSuperCeo() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_27)
+        engine.startGame()
+
+        val lollo = engine.state.boss
+        val ivanone = engine.state.secondaryBoss
+        assertNotNull(ivanone)
+        assertEquals("LOLLO ZURICH", lollo.name)
+        assertEquals("IVANONE", ivanone!!.name)
+        assertEquals(220, lollo.hp)
+        assertEquals(220, ivanone.hp)
+
+        // Both directors fire their signature attacks
+        lollo.attackCooldown = 0.01f
+        ivanone.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.CAMERA_FLASH })
+
+        // Defeating Lollo alone does NOT trigger victory; Ivanone enters Super-CEO mode (phase 2 + heal)
+        lollo.hp = 10
+        ivanone.hp = 150
+        engine.state.projectiles.clear()
+        engine.state.projectiles.add(
+            Projectile(x = lollo.x, y = lollo.y, vx = 0f, vy = 0f, radius = 12f, fromPlayer = true, damage = 20)
+        )
+        engine.update(0.016f)
+        assertEquals(0, lollo.hp)
+        assertEquals(GameStatus.PLAYING, engine.state.status)
+        assertEquals(2, ivanone.phase)
+        assertEquals(180, ivanone.hp)
+
+        // Defeating Ivanone too triggers VICTORY!
+        ivanone.hp = 10
+        engine.state.projectiles.add(
+            Projectile(x = ivanone.x, y = ivanone.y, vx = 0f, vy = 0f, radius = 12f, fromPlayer = true, damage = 20)
+        )
+        engine.update(0.016f)
+        assertEquals(0, ivanone.hp)
+        assertEquals(GameStatus.VICTORY, engine.state.status)
     }
 }

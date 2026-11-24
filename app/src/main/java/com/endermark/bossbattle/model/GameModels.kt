@@ -283,6 +283,7 @@ data class GameState(
     var status: GameStatus,
     val player: Player,
     val boss: Boss,
+    var secondaryBoss: Boss? = null,
     val projectiles: MutableList<Projectile> = mutableListOf(),
     val particles: MutableList<HitParticle> = mutableListOf(),
     val pickups: MutableList<ArenaPickup> = mutableListOf(),

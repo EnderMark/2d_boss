@@ -521,7 +521,10 @@ class GameRenderer {
         }
 
         drawMovingPlatforms(canvas, state)
-        if (state.level.enableTurretFortress && state.hasActiveTurrets) {
+        val secondaryBoss = state.secondaryBoss
+        if (state.level.enableBoardOfDirectors && secondaryBoss != null) {
+            drawDualBossHealthBars(canvas, state.boss, secondaryBoss, state.worldWidth)
+        } else if (state.level.enableTurretFortress && state.hasActiveTurrets) {
             drawFortressSealedBar(canvas, state)
         } else {
             drawBossHealthBar(canvas, state.boss, state.worldWidth, state.level.multiPhase)
@@ -533,7 +536,9 @@ class GameRenderer {
         drawTurrets(canvas, state)
         drawParticles(canvas, state)
 
-        if (state.boss.hp > 0 && !state.boss.isVanished) {
+        if (state.level.enableBoardOfDirectors) {
+            drawBoardOfDirectors(canvas, state)
+        } else if (state.boss.hp > 0 && !state.boss.isVanished) {
             when (state.level.arenaTheme) {
                 ArenaTheme.HANOI -> drawChanBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.HANOI_SPA -> drawCaramelBoss(canvas, state.boss, state.elapsedTime)
@@ -2656,6 +2661,96 @@ class GameRenderer {
         phaseBadgePaint.textAlign = Paint.Align.RIGHT
         canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)
         phaseBadgePaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawDualBossHealthBars(
+        canvas: Canvas,
+        leftBoss: Boss,
+        rightBoss: Boss,
+        worldWidth: Float
+    ) {
+        val marginX = 44f
+        val gap = 28f
+        val barWidth = (worldWidth - marginX * 2f - gap) / 2f
+        val topY = 92f
+        val barHeight = 32f
+        val cornerRadius = 12f
+
+        fun drawOneBar(boss: Boss, leftX: Float, startCol: Int, endCol: Int) {
+            val label = if (boss.hp <= 0) "${boss.name} (KO)" else boss.name
+            canvas.drawText(label, leftX, topY - 14f, bossNamePaint)
+            canvas.drawText(
+                "${boss.hp}/${boss.maxHp}",
+                leftX + barWidth,
+                topY - 14f,
+                hpTextPaint
+            )
+            tempRect.set(leftX, topY, leftX + barWidth, topY + barHeight)
+            canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBgPaint)
+
+            val trailW = barWidth * boss.displayedHpRatio
+            if (trailW > 0f) {
+                tempRect.set(leftX, topY, leftX + trailW, topY + barHeight)
+                canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barTrailPaint)
+            }
+            val fillW = barWidth * boss.hpRatio
+            if (fillW > 0f) {
+                barFillPaint.shader = LinearGradient(
+                    leftX, topY, leftX + barWidth, topY,
+                    startCol, endCol, Shader.TileMode.CLAMP
+                )
+                tempRect.set(leftX, topY, leftX + fillW, topY + barHeight)
+                canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barFillPaint)
+                barFillPaint.shader = null
+            }
+            tempRect.set(leftX, topY, leftX + barWidth, topY + barHeight)
+            canvas.drawRoundRect(tempRect, cornerRadius, cornerRadius, barBorderPaint)
+        }
+
+        drawOneBar(leftBoss, marginX, Color.parseColor("#E53935"), Color.parseColor("#FF7043"))
+        drawOneBar(rightBoss, marginX + barWidth + gap, Color.parseColor("#8E24AA"), Color.parseColor("#FFAB00"))
+
+        val statusText = when {
+            leftBoss.hp > 0 && rightBoss.hp > 0 -> "BOARD OF DIRECTORS • SINERGIA ATTIVA"
+            leftBoss.hp > 0 -> "LOLLO SUPER-CEO! HA PRESO TUTTO IL BOARD!"
+            else -> "IVANONE SUPER-CEO! HA PRESO TUTTO IL BOARD!"
+        }
+        phaseBadgePaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(statusText, worldWidth - marginX, 158f, phaseBadgePaint)
+        phaseBadgePaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawBoardOfDirectors(canvas: Canvas, state: GameState) {
+        val lollo = state.boss
+        val ivanone = state.secondaryBoss
+
+        // Golden boardroom synergy tether when both directors are alive and visible
+        if (lollo.hp > 0 && ivanone != null && ivanone.hp > 0 && !ivanone.isVanished) {
+            val tetherPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(135, 255, 213, 79)
+                style = Paint.Style.STROKE
+                strokeWidth = 8f + 3f * sin(state.elapsedTime * 10f)
+            }
+            canvas.drawLine(lollo.x, lollo.y, ivanone.x, ivanone.y, tetherPaint)
+        }
+
+        if (lollo.hp > 0 && !lollo.isVanished) {
+            // Super-CEO golden aura if Ivanone is KO
+            if (ivanone == null || ivanone.hp <= 0) {
+                val auraR = lollo.radius * (1.28f + 0.05f * sin(state.elapsedTime * 11f))
+                canvas.drawCircle(lollo.x, lollo.y, auraR, controlAttackBorderPaint)
+            }
+            drawLolloZurichBoss(canvas, lollo, state.elapsedTime)
+        }
+
+        if (ivanone != null && ivanone.hp > 0 && !ivanone.isVanished) {
+            // Super-CEO golden aura if Lollo is KO
+            if (lollo.hp <= 0) {
+                val auraR = ivanone.radius * (1.28f + 0.05f * sin(state.elapsedTime * 11f))
+                canvas.drawCircle(ivanone.x, ivanone.y, auraR, controlAttackBorderPaint)
+            }
+            drawIvanoneBoss(canvas, ivanone, state.elapsedTime)
+        }
     }
 
     private fun drawMinions(canvas: Canvas, state: GameState) {

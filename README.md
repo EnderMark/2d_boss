@@ -24,6 +24,7 @@ Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **
 - **Livello 24 • LOLLO GIGANTE — `LOLLO ZURICH GIGANTE`**: Enorme testa pelata in volo libero 360° che attacca lanciando **computer, divani e televisioni**. Lollo è invincibile finché non respingi contro di lui sia una **TV** sia un **Divano**: entra allora in stato **INGOLFATO** e diventa vulnerabile ai colpi!
 - **Livello 25 • LOLLO INFURIATO — `LOLLO GIGANTE INFURIATO`**: Versione infuocata e più difficile di Lollo Gigante con fiamme sulla pelata, vapore dalle orecchie, **raggi laser telegrafati** (e a croce sotto il 50% HP), stato **INGOLFATO dimezzato** (`3.25s`) ed **esplosione radiale di rabbia** appena si riprende!
 - **Livello 26 • TECH LEAD — `LOLLO TECH LEAD`**: Lollo in camicia e **cravatta rossa** in **3 fasi**, spawna **programmatori kamikaze** che ti inseguono per esploderti addosso; in **Fase 3** spara **nuvole di scorregge tossiche** e subisce **solo la metà del danno**!
+- **Livello 27 • BOARD OF DIRECTORS — `LOLLO ZURICH + IVANONE`**: Doppio boss simultaneo in volo libero 360°, ciascuno con la **propria barra della vita**! Lollo lancia lamentele da board e laptop, Ivanone usa droni, flash fotografici e teletrasporto; quando abbatti uno dei due, il superstite diventa **SUPER-CEO** combinando gli attacchi di entrambi!
 - **Controlli Audio**: barra volume e toggle separati per **Musica** ed **Effetti (SFX)** disponibili sia nel menù livelli sia in battaglia.
 
 ## Build e Test

@@ -274,8 +274,12 @@ class BossBattleEngine(
                 damageBoostTimer = 0f
             }
             state.boss.apply {
-                x = state.worldWidth / 2f
-                y = if (level.enableTurretFortress) FORTRESS_BOSS_Y else BOSS_TOP_OFFSET
+                x = if (level.enableBoardOfDirectors) state.worldWidth * 0.28f else state.worldWidth / 2f
+                y = when {
+                    level.enableTurretFortress -> FORTRESS_BOSS_Y
+                    level.enableBoardOfDirectors -> 390f
+                    else -> BOSS_TOP_OFFSET
+                }
                 hp = maxHp
                 displayedHp = maxHp.toFloat()
                 armor = level.bossMaxArmor
@@ -290,6 +294,21 @@ class BossBattleEngine(
                 facingDir = 1
                 vanishTimer = 0f
                 hitsSinceVanish = 0
+            }
+            if (level.enableBoardOfDirectors) {
+                state.secondaryBoss = Boss(
+                    name = "IVANONE",
+                    x = state.worldWidth * 0.72f,
+                    y = 390f,
+                    radius = 80f,
+                    hp = level.bossMaxHp,
+                    maxHp = level.bossMaxHp,
+                    displayedHp = level.bossMaxHp.toFloat(),
+                    phase = 1,
+                    attackCooldown = 1.35f
+                )
+            } else {
+                state.secondaryBoss = null
             }
         }
         targetPlayerX = state.player.x
@@ -426,6 +445,11 @@ class BossBattleEngine(
         }
         if (boss.stunTimer > 0f) {
             boss.stunTimer = max(0f, boss.stunTimer - dt)
+            return
+        }
+
+        if (level.enableBoardOfDirectors) {
+            updateBoardOfDirectors(dt)
             return
         }
 
@@ -611,6 +635,152 @@ class BossBattleEngine(
                     )
                 }
             }
+        }
+    }
+
+    private fun updateBoardOfDirectors(dt: Float) {
+        val lollo = state.boss
+        val ivanone = state.secondaryBoss
+        val t = state.elapsedTime
+
+        // Update Lollo Zurich (left/upper orbital arc; wider & faster if Ivanone is KO)
+        if (lollo.hp > 0) {
+            val isSuperCeo = ivanone == null || ivanone.hp <= 0
+            val speedScale = if (isSuperCeo) 1.38f else 1.0f
+            val centerX = if (isSuperCeo) state.worldWidth * 0.5f else state.worldWidth * 0.30f
+            val ampX = if (isSuperCeo) 280f else 155f
+            val targetX = centerX + sin(t * 0.9f * speedScale) * ampX
+            val targetY = 395f + sin(t * 1.6f * speedScale) * 90f
+            lollo.x += (targetX - lollo.x) * (3.2f * dt).coerceAtMost(1f)
+            lollo.y += (targetY - lollo.y) * (3.2f * dt).coerceAtMost(1f)
+
+            lollo.attackCooldown -= dt
+            if (lollo.attackCooldown <= 0f) {
+                spawnBoardLolloSalvo(isSuperCeo)
+                lollo.attackCooldown = if (isSuperCeo || lollo.isEnraged) {
+                    level.bossEnragedAttackInterval
+                } else {
+                    level.bossAttackInterval
+                }
+            }
+        }
+
+        // Update Ivanone (right/upper mirrored arc + periodic vanish teleport!)
+        if (ivanone != null && ivanone.hp > 0) {
+            if (ivanone.hitFlashTimer > 0f) {
+                ivanone.hitFlashTimer = max(0f, ivanone.hitFlashTimer - dt)
+            }
+            if (ivanone.vanishTimer > 0f) {
+                ivanone.vanishTimer = max(0f, ivanone.vanishTimer - dt)
+                if (ivanone.vanishTimer <= 0f) {
+                    ivanone.x = if (ivanone.x > state.worldWidth * 0.5f) {
+                        state.worldWidth * 0.28f
+                    } else {
+                        state.worldWidth * 0.72f
+                    }
+                    ivanone.y = 410f
+                    emitSound(GameSoundEvent.BOSS_VANISH)
+                    spawnHitParticles(ivanone.x, ivanone.y, COLOR_VANISH_SMOKE, 16)
+                }
+                return
+            }
+
+            val isSuperCeo = lollo.hp <= 0
+            val speedScale = if (isSuperCeo) 1.38f else 1.0f
+            val centerX = if (isSuperCeo) state.worldWidth * 0.5f else state.worldWidth * 0.70f
+            val ampX = if (isSuperCeo) 280f else 155f
+            val targetX = centerX - sin(t * 0.9f * speedScale) * ampX
+            val targetY = 395f - sin(t * 1.6f * speedScale) * 90f
+            ivanone.x += (targetX - ivanone.x) * (3.2f * dt).coerceAtMost(1f)
+            ivanone.y += (targetY - ivanone.y) * (3.2f * dt).coerceAtMost(1f)
+
+            ivanone.attackCooldown -= dt
+            if (ivanone.attackCooldown <= 0f) {
+                spawnBoardIvanoneSalvo(isSuperCeo)
+                ivanone.attackCooldown = if (isSuperCeo || ivanone.isEnraged) {
+                    level.bossEnragedAttackInterval
+                } else {
+                    level.bossAttackInterval
+                }
+            }
+        }
+    }
+
+    private fun spawnBoardLolloSalvo(isSuperCeo: Boolean) {
+        val lollo = state.boss
+        val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
+        val speed = if (isSuperCeo) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - lollo.y).toDouble(), (player.x - lollo.x).toDouble())
+        val label = BOARD_LOLLO_QUOTES[complaintIndex % BOARD_LOLLO_QUOTES.size]
+        complaintIndex += 1
+
+        state.projectiles.add(
+            Projectile(
+                x = lollo.x,
+                y = lollo.y + 20f,
+                vx = (cos(baseAngle) * speed * 0.92f).toFloat(),
+                vy = (sin(baseAngle) * speed * 0.92f).toFloat(),
+                radius = 28f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.COMPLAINT,
+                label = label
+            )
+        )
+        val sideOffsets = if (isSuperCeo) listOf(-0.34, 0.34) else listOf(0.26)
+        for (offset in sideOffsets) {
+            val angle = baseAngle + offset
+            state.projectiles.add(
+                Projectile(
+                    x = lollo.x,
+                    y = lollo.y + 18f,
+                    vx = (cos(angle) * speed).toFloat(),
+                    vy = (sin(angle) * speed).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = if (isSuperCeo && offset < 0) ProjectileKind.DRONE else ProjectileKind.COMPUTER,
+                    label = if (isSuperCeo && offset < 0) null else "PC"
+                )
+            )
+        }
+    }
+
+    private fun spawnBoardIvanoneSalvo(isSuperCeo: Boolean) {
+        val ivanone = state.secondaryBoss ?: return
+        val player = state.player
+        emitSound(GameSoundEvent.CAMERA_SHUTTER)
+        val speed = if (isSuperCeo) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - ivanone.y).toDouble(), (player.x - ivanone.x).toDouble())
+
+        state.projectiles.add(
+            Projectile(
+                x = ivanone.x,
+                y = ivanone.y + 20f,
+                vx = (cos(baseAngle) * speed).toFloat(),
+                vy = (sin(baseAngle) * speed).toFloat(),
+                radius = 26f,
+                fromPlayer = false,
+                damage = 1,
+                kind = ProjectileKind.CAMERA_FLASH
+            )
+        )
+        val sideOffsets = if (isSuperCeo) listOf(-0.32, 0.32) else listOf(-0.26)
+        for (offset in sideOffsets) {
+            val angle = baseAngle + offset
+            state.projectiles.add(
+                Projectile(
+                    x = ivanone.x,
+                    y = ivanone.y + 18f,
+                    vx = (cos(angle) * speed * 0.95f).toFloat(),
+                    vy = (sin(angle) * speed * 0.95f).toFloat(),
+                    radius = 24f,
+                    fromPlayer = false,
+                    damage = 1,
+                    kind = if (isSuperCeo && offset > 0) ProjectileKind.COMPUTER else ProjectileKind.DRONE
+                )
+            )
         }
     }
 
@@ -1558,13 +1728,47 @@ class BossBattleEngine(
                 }
                 if (hitTurret) continue
 
-                if (!boss.isVanished && circlesCollide(
+                // Check secondary boss (Level 27 Board of Directors: Ivanone)
+                val secBoss = state.secondaryBoss
+                if (secBoss != null && secBoss.hp > 0 && !secBoss.isVanished && circlesCollide(
+                        projectile.x, projectile.y, projectile.radius,
+                        secBoss.x, secBoss.y, secBoss.radius
+                    )
+                ) {
+                    iterator.remove()
+                    applyDamageToBoardMember(
+                        target = secBoss,
+                        partner = boss,
+                        damage = projectile.damage,
+                        hitX = projectile.x,
+                        hitY = projectile.y,
+                        canVanish = true
+                    )
+                    if (state.status != GameStatus.PLAYING) {
+                        return
+                    }
+                    continue
+                }
+
+                if (boss.hp > 0 && !boss.isVanished && circlesCollide(
                         projectile.x, projectile.y, projectile.radius,
                         boss.x, boss.y, boss.radius
                     )
                 ) {
                     iterator.remove()
-                    if (level.enableGiantLollo && projectile.isReflectableFurniture) {
+                    if (level.enableBoardOfDirectors) {
+                        applyDamageToBoardMember(
+                            target = boss,
+                            partner = state.secondaryBoss,
+                            damage = projectile.damage,
+                            hitX = projectile.x,
+                            hitY = projectile.y,
+                            canVanish = false
+                        )
+                        if (state.status != GameStatus.PLAYING) {
+                            return
+                        }
+                    } else if (level.enableGiantLollo && projectile.isReflectableFurniture) {
                         if (projectile.kind == ProjectileKind.TV) {
                             state.lolloTvHit = true
                         } else if (projectile.kind == ProjectileKind.SOFA) {
@@ -1628,9 +1832,17 @@ class BossBattleEngine(
             }
         }
 
-        // Free-flight body contact with Dreadnought, minion ships, or live perimeter turrets
+        // Free-flight body contact with bosses, minion ships, or live perimeter turrets
         if (level.mode == BattleMode.FREE_FLIGHT_SHOOTER && !player.isInvulnerable) {
-            if (circlesCollide(player.x, player.y, player.radius * 0.85f, boss.x, boss.y, boss.radius * 0.85f)) {
+            val secBoss = state.secondaryBoss
+            if (boss.hp > 0 && !boss.isVanished &&
+                circlesCollide(player.x, player.y, player.radius * 0.85f, boss.x, boss.y, boss.radius * 0.85f)
+            ) {
+                applyDamageToPlayer(1)
+                if (state.status != GameStatus.PLAYING) return
+            } else if (secBoss != null && secBoss.hp > 0 && !secBoss.isVanished &&
+                circlesCollide(player.x, player.y, player.radius * 0.85f, secBoss.x, secBoss.y, secBoss.radius * 0.85f)
+            ) {
                 applyDamageToPlayer(1)
                 if (state.status != GameStatus.PLAYING) return
             } else {
@@ -1678,6 +1890,52 @@ class BossBattleEngine(
                     }
                     break
                 }
+            }
+        }
+    }
+
+    private fun applyDamageToBoardMember(
+        target: Boss,
+        partner: Boss?,
+        damage: Int,
+        hitX: Float,
+        hitY: Float,
+        canVanish: Boolean
+    ) {
+        target.hitFlashTimer = BOSS_HIT_FLASH_DURATION
+        target.hp = max(0, target.hp - damage)
+        spawnHitParticles(hitX, hitY, color = COLOR_BOSS_HIT_SPARK, count = 8)
+
+        if (target.hp <= 0) {
+            target.vanishTimer = 0f
+            spawnHitParticles(target.x, target.y, color = COLOR_VICTORY_SPARK, count = 24)
+            if (partner == null || partner.hp <= 0) {
+                state.status = GameStatus.VICTORY
+                state.endStateCooldown = END_STATE_COOLDOWN
+                state.projectiles.clear()
+                state.pickups.clear()
+                state.lasers.clear()
+                emitSound(GameSoundEvent.VICTORY)
+            } else {
+                // Surviving Board member absorbs the other seat -> SUPER-CEO MODE!
+                partner.phase = 2
+                partner.hp = min(partner.maxHp, partner.hp + 30)
+                partner.displayedHp = max(partner.displayedHp, partner.hp.toFloat())
+                state.phaseFlashTimer = 0.65f
+                emitSound(GameSoundEvent.BOSS_CHARGE)
+                spawnHitParticles(partner.x, partner.y, color = COLOR_SHIELD_BLOCK_SPARK, count = 26)
+            }
+            return
+        }
+
+        emitSound(GameSoundEvent.BOSS_HIT)
+        if (canVanish) {
+            target.hitsSinceVanish += 1
+            if (target.hitsSinceVanish >= 4) {
+                target.hitsSinceVanish = 0
+                target.vanishTimer = 0.65f
+                emitSound(GameSoundEvent.BOSS_VANISH)
+                spawnHitParticles(target.x, target.y, COLOR_VANISH_SMOKE, 14)
             }
         }
     }
@@ -2546,6 +2804,15 @@ class BossBattleEngine(
         } else {
             boss.displayedHp = target
         }
+        val sec = state.secondaryBoss
+        if (sec != null) {
+            val secTarget = sec.hp.toFloat()
+            if (sec.displayedHp > secTarget) {
+                sec.displayedHp = max(secTarget, sec.displayedHp - BOSS_HP_TRAIL_SPEED * dt)
+            } else {
+                sec.displayedHp = secTarget
+            }
+        }
     }
 
     private fun circlesCollide(
@@ -2568,6 +2835,7 @@ class BossBattleEngine(
         val playerRadius = 36f
         val bossRadius = when {
             level.enableGiantLollo -> 128f
+            level.enableBoardOfDirectors -> 78f
             level.arenaTheme == ArenaTheme.HANOI -> 64f
             level.arenaTheme == ArenaTheme.HANOI_SPA -> 68f
             level.arenaTheme == ArenaTheme.OMEGA_FINALE -> 82f
@@ -2593,9 +2861,17 @@ class BossBattleEngine(
                 radius = playerRadius
             ),
             boss = Boss(
-                name = level.bossName,
-                x = if (isMelee) worldWidth * 0.76f else worldWidth / 2f,
-                y = if (isMelee) DEFAULT_GROUND_Y - bossRadius else BOSS_TOP_OFFSET,
+                name = if (level.enableBoardOfDirectors) "LOLLO ZURICH" else level.bossName,
+                x = when {
+                    isMelee -> worldWidth * 0.76f
+                    level.enableBoardOfDirectors -> worldWidth * 0.28f
+                    else -> worldWidth / 2f
+                },
+                y = when {
+                    isMelee -> DEFAULT_GROUND_Y - bossRadius
+                    level.enableBoardOfDirectors -> 390f
+                    else -> BOSS_TOP_OFFSET
+                },
                 radius = bossRadius,
                 hp = level.bossMaxHp,
                 maxHp = level.bossMaxHp,
@@ -2605,6 +2881,21 @@ class BossBattleEngine(
                 phase = 1,
                 velocityX = if (isMelee) -level.bossBaseSpeed else level.bossBaseSpeed
             ),
+            secondaryBoss = if (level.enableBoardOfDirectors) {
+                Boss(
+                    name = "IVANONE",
+                    x = worldWidth * 0.72f,
+                    y = 390f,
+                    radius = 80f,
+                    hp = level.bossMaxHp,
+                    maxHp = level.bossMaxHp,
+                    displayedHp = level.bossMaxHp.toFloat(),
+                    phase = 1,
+                    attackCooldown = 1.35f
+                )
+            } else {
+                null
+            },
             groundY = DEFAULT_GROUND_Y
         )
     }
@@ -2746,6 +3037,14 @@ class BossBattleEngine(
             "STANDUP ALLE 8!",
             "DOV'È IL DESIGN DOC?",
             "LGTM... SCHERZAVO!"
+        )
+
+        val BOARD_LOLLO_QUOTES = listOf(
+            "APPROVATO DAL BOARD!",
+            "TAGLIAMO IL BUDGET!",
+            "FA FREDDO A ZURIGO!",
+            "SINERGIA MASSIMA!",
+            "LICENZIATO!"
         )
 
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()

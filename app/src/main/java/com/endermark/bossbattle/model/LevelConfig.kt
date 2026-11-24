@@ -42,6 +42,7 @@ data class BossLevel(
     val enableGiantLollo: Boolean = false,
     val enableFuriousLollo: Boolean = false,
     val enableTechLeadLollo: Boolean = false,
+    val enableBoardOfDirectors: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -523,6 +524,24 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_27 = BossLevel(
+        id = 27,
+        title = "LIVELLO 27 • BOARD OF DIRECTORS",
+        bossName = "BOARD OF DIRECTORS",
+        subtitle = "Pad 360° • Ivanone e Lollo Zurich insieme! Due barre vita e modalità Super-CEO!",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 220,
+        enableBoardOfDirectors = true,
+        bossBaseSpeed = 165f,
+        bossAttackInterval = 1.65f,
+        bossEnragedAttackInterval = 1.15f,
+        bossProjectileSpeed = 450f,
+        bossEnragedProjectileSpeed = 540f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -549,7 +568,8 @@ object LevelCatalog {
         LEVEL_23,
         LEVEL_24,
         LEVEL_25,
-        LEVEL_26
+        LEVEL_26,
+        LEVEL_27
     )
 
     fun findById(id: Int): BossLevel {
