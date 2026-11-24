@@ -253,7 +253,7 @@ class GameSurfaceView(
                     synchronized(stateLock) {
                         engine.update(dt)
                         soundEvents = engine.drainSoundEvents()
-                        renderer.render(canvas, engine.state)
+                        renderer.render(AndroidCanvasAdapter(canvas), engine.state)
                     }
                     for (event in soundEvents) {
                         soundManager.play(event)

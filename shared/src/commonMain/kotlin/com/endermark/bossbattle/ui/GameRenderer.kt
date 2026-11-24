@@ -1,12 +1,12 @@
 package com.endermark.bossbattle.ui
 
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RectF
-import android.graphics.Shader
+import com.endermark.bossbattle.graphics.Canvas
+import com.endermark.bossbattle.graphics.Color
+import com.endermark.bossbattle.graphics.LinearGradient
+import com.endermark.bossbattle.graphics.Paint
+import com.endermark.bossbattle.graphics.Path
+import com.endermark.bossbattle.graphics.RectF
+import com.endermark.bossbattle.graphics.Shader
 import com.endermark.bossbattle.model.ArenaTheme
 import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.Boss
@@ -2157,7 +2157,7 @@ class GameRenderer {
 
         // Orbiting cosmic energy nodes
         for (i in 0..3) {
-            val angle = elapsedTime * (2.5f + boss.phase) + i * (Math.PI / 2.0)
+            val angle = elapsedTime * (2.5f + boss.phase) + i * (kotlin.math.PI / 2.0)
             val ox = x + (kotlin.math.cos(angle) * r * 1.12f).toFloat()
             val oy = y + (sin(angle) * r * 0.65f).toFloat()
             canvas.drawCircle(ox, oy, 11f, hanoiLanternGoldPaint)
@@ -2384,7 +2384,7 @@ class GameRenderer {
             // Rotating gun barrel aiming at player
             canvas.save()
             canvas.translate(tx, ty)
-            canvas.rotate(Math.toDegrees(turret.angle.toDouble()).toFloat())
+            canvas.rotate((180.0 / kotlin.math.PI * turret.angle.toDouble()).toFloat())
             bossCorePaint.color = if (turret.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FF5252")
             tempRect.set(0f, -9f, r * 1.25f, 9f)
             canvas.drawRoundRect(tempRect, 4f, 4f, bossCorePaint)
@@ -2452,7 +2452,7 @@ class GameRenderer {
             val aimAngle = atan2((state.player.y - y).toDouble(), (state.player.x - x).toDouble())
             canvas.save()
             canvas.translate(x, y)
-            canvas.rotate(Math.toDegrees(aimAngle).toFloat())
+            canvas.rotate((180.0 / kotlin.math.PI * aimAngle).toFloat())
             bossCorePaint.color = if (isHit) Color.WHITE else Color.parseColor("#FF1744")
             tempRect.set(12f, -34f, r * 1.32f, -12f)
             canvas.drawRoundRect(tempRect, 6f, 6f, bossCorePaint)
@@ -2813,7 +2813,7 @@ class GameRenderer {
 
             canvas.save()
             canvas.translate(minion.x, minion.y)
-            canvas.rotate(Math.toDegrees(minion.angle.toDouble()).toFloat() + 90f)
+            canvas.rotate((180.0 / kotlin.math.PI * minion.angle.toDouble()).toFloat() + 90f)
 
             bossArmorPaint.color = if (minion.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FF7043")
             tempPath.reset()
@@ -2835,7 +2835,7 @@ class GameRenderer {
         val r = player.radius
         canvas.save()
         canvas.translate(player.x, player.y)
-        canvas.rotate(Math.toDegrees(player.angle.toDouble()).toFloat() + 90f)
+        canvas.rotate((180.0 / kotlin.math.PI * player.angle.toDouble()).toFloat() + 90f)
 
         // Thruster flame when moving
         if (abs(player.vx) > 20f || abs(player.vy) > 20f) {

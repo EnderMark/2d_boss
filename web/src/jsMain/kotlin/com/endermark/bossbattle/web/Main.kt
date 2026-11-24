@@ -5,6 +5,7 @@ import com.endermark.bossbattle.model.BattleMode
 import com.endermark.bossbattle.model.BossLevel
 import com.endermark.bossbattle.model.GameStatus
 import com.endermark.bossbattle.model.LevelCatalog
+import com.endermark.bossbattle.ui.GameRenderer
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.CanvasRenderingContext2D
@@ -14,7 +15,6 @@ import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.events.KeyboardEvent
 import org.w3c.dom.pointerevents.PointerEvent
-import kotlin.math.hypot
 import kotlin.math.min
 
 fun main() {
@@ -33,18 +33,16 @@ private fun initApp() {
     val musicToggle = document.getElementById("musicToggle") as HTMLInputElement
     val sfxToggle = document.getElementById("sfxToggle") as HTMLInputElement
 
-    val renderer = WebRenderer()
+    // Uses the EXACT SAME shared GameRenderer as Android!
+    val renderer = GameRenderer()
     val sound = WebSoundManager()
     var engine: BossBattleEngine? = null
     var lastTimeMs = 0.0
     var muted = false
 
-    // Active pointer tracking for multi-touch mobile controls
-    val activePointers = mutableMapOf<Int, Pair<Double, Double>>()
+    val activePointers = mutableMapOf<Int, Pair<Float, Float>>()
     var joyPointerId: Int? = null
     var firePointerId: Int? = null
-
-    // Active keyboard state for desktop controls
     val keysDown = mutableSetOf<String>()
 
     fun resizeCanvas() {
@@ -55,7 +53,7 @@ private fun initApp() {
     resizeCanvas()
     window.addEventListener("resize", { resizeCanvas() })
 
-    fun toWorld(clientX: Double, clientY: Double): Pair<Double, Double> {
+    fun toWorld(clientX: Double, clientY: Double): Pair<Float, Float> {
         val dpr = window.devicePixelRatio.coerceIn(1.0, 2.0)
         val cx = clientX * dpr
         val cy = clientY * dpr
@@ -64,7 +62,7 @@ private fun initApp() {
         val scale = min(canvas.width / w, canvas.height / h)
         val offsetX = (canvas.width - w * scale) / 2.0
         val offsetY = (canvas.height - h * scale) / 2.0
-        return ((cx - offsetX) / scale) to ((cy - offsetY) / scale)
+        return ((cx - offsetX) / scale).toFloat() to ((cy - offsetY) / scale).toFloat()
     }
 
     fun applyInputs() {
@@ -76,11 +74,14 @@ private fun initApp() {
                 if (keysDown.contains("ArrowLeft") || keysDown.contains("KeyA")) dir -= 1
                 if (keysDown.contains("ArrowRight") || keysDown.contains("KeyD")) dir += 1
                 var blocking = keysDown.contains("ShiftLeft") || keysDown.contains("ShiftRight")
+                val leftRect = renderer.leftButtonRect(lvl.hasShield)
+                val rightRect = renderer.rightButtonRect(lvl.hasShield)
+                val shieldRect = renderer.shieldButtonRect()
                 for ((_, pos) in activePointers) {
                     val (wx, wy) = pos
-                    if (renderer.leftBtn(lvl.hasShield).contains(wx, wy)) dir -= 1
-                    if (renderer.rightBtn(lvl.hasShield).contains(wx, wy)) dir += 1
-                    if (lvl.hasShield && renderer.shieldBtn().contains(wx, wy)) blocking = true
+                    if (leftRect.contains(wx, wy)) dir -= 1
+                    if (rightRect.contains(wx, wy)) dir += 1
+                    if (lvl.hasShield && shieldRect.contains(wx, wy)) blocking = true
                 }
                 eng.setMoveInput(dir.coerceIn(-1, 1))
                 eng.setBlocking(blocking)
@@ -94,8 +95,8 @@ private fun initApp() {
                 if (keysDown.contains("ArrowDown") || keysDown.contains("KeyS")) jy += 1f
                 val jp = joyPointerId?.let { activePointers[it] }
                 if (jp != null) {
-                    jx = ((jp.first - renderer.joystickCenterX) / renderer.joystickRadius).toFloat()
-                    jy = ((jp.second - renderer.joystickCenterY) / renderer.joystickRadius).toFloat()
+                    jx = (jp.first - renderer.padCenterX()) / renderer.padRadius()
+                    jy = (jp.second - renderer.padCenterY()) / renderer.padRadius()
                 }
                 eng.setJoystickInput(jx, jy)
                 val firing = firePointerId != null ||
@@ -138,7 +139,6 @@ private fun initApp() {
         menuScreen.style.display = "flex"
     }
 
-    // Populate Level Select Grid dynamically from shared LevelCatalog
     for (level in LevelCatalog.levels) {
         val card = document.createElement("button") as HTMLButtonElement
         card.className = "level-card"
@@ -160,7 +160,6 @@ private fun initApp() {
         levelGrid.appendChild(card)
     }
 
-    // Audio controls
     volSlider.oninput = {
         sound.volume = (volSlider.value.toDoubleOrNull() ?: 80.0) / 100.0
     }
@@ -174,29 +173,31 @@ private fun initApp() {
         muteBtn.textContent = if (muted) "🔇 MUTO" else "🔊 AUDIO"
     }
 
-    // Pointer / Touch events on Canvas
     canvas.addEventListener("pointerdown", { ev ->
         val pe = ev as PointerEvent
         pe.preventDefault()
         sound.unlock()
         val eng = engine ?: return@addEventListener
+        val (wx, wy) = toWorld(pe.clientX.toDouble(), pe.clientY.toDouble())
         if (eng.state.status != GameStatus.PLAYING) {
-            eng.handleTapOrRestart()
+            if (renderer.isMenuButtonHit(wx, wy, eng.state)) {
+                returnToMenu()
+            } else {
+                eng.handleTapOrRestart()
+            }
             return@addEventListener
         }
-        val (wx, wy) = toWorld(pe.clientX.toDouble(), pe.clientY.toDouble())
         activePointers[pe.pointerId] = wx to wy
         when (eng.level.mode) {
-            BattleMode.SHOOTER -> eng.setPlayerTargetX(wx.toFloat())
+            BattleMode.SHOOTER -> eng.setPlayerTargetX(wx)
             BattleMode.MELEE_PLATFORMER -> {
-                if (renderer.jumpBtn(eng.level.hasShield).contains(wx, wy)) eng.triggerJump()
-                if (renderer.attackBtn(eng.level.hasShield).contains(wx, wy)) eng.triggerMeleeAttack()
+                if (renderer.jumpButtonRect(eng.level.hasShield).contains(wx, wy)) eng.triggerJump()
+                if (renderer.attackButtonRect(eng.level.hasShield).contains(wx, wy)) eng.triggerMeleeAttack()
             }
             BattleMode.FREE_FLIGHT_SHOOTER -> {
-                val dFire = hypot(wx - renderer.freeFireCenterX, wy - renderer.freeFireCenterY)
-                if (dFire <= renderer.freeFireRadius * 1.45) {
+                if (renderer.fireButtonRect().contains(wx, wy)) {
                     firePointerId = pe.pointerId
-                } else if (wx < 560.0 || joyPointerId == null) {
+                } else if (wx < 560f || joyPointerId == null) {
                     joyPointerId = pe.pointerId
                 }
             }
@@ -212,7 +213,7 @@ private fun initApp() {
         val (wx, wy) = toWorld(pe.clientX.toDouble(), pe.clientY.toDouble())
         activePointers[pe.pointerId] = wx to wy
         if (eng.level.mode == BattleMode.SHOOTER) {
-            eng.setPlayerTargetX(wx.toFloat())
+            eng.setPlayerTargetX(wx)
         }
         applyInputs()
     })
@@ -227,7 +228,6 @@ private fun initApp() {
     canvas.addEventListener("pointerup", releasePointer)
     canvas.addEventListener("pointercancel", releasePointer)
 
-    // Keyboard controls for Desktop
     window.addEventListener("keydown", { ev ->
         val ke = ev as KeyboardEvent
         val eng = engine ?: return@addEventListener
@@ -257,7 +257,6 @@ private fun initApp() {
         applyInputs()
     })
 
-    // 60fps Game Loop
     fun frame(nowMs: Double) {
         val dt = if (lastTimeMs == 0.0) 0.016f else ((nowMs - lastTimeMs) / 1000.0).toFloat().coerceIn(0f, 0.05f)
         lastTimeMs = nowMs
@@ -268,7 +267,7 @@ private fun initApp() {
             for (evt in eng.drainSoundEvents()) {
                 sound.play(evt)
             }
-            renderer.render(ctx, eng.state, canvas.width.toDouble(), canvas.height.toDouble())
+            renderer.render(HtmlCanvasAdapter(ctx, canvas.width, canvas.height), eng.state)
         }
         window.requestAnimationFrame(::frame)
     }
