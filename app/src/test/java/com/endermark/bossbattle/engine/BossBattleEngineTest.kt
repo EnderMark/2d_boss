@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentySevenLevels() {
-        assertEquals(27, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyEightLevels() {
+        assertEquals(28, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -65,6 +65,14 @@ class BossBattleEngineTest {
         assertEquals("BOARD OF DIRECTORS", level27.bossName)
         assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level27.mode)
         assertTrue(level27.enableBoardOfDirectors)
+
+        val level28 = LevelCatalog.findById(28)
+        assertEquals("BOARD OF DIRECTORS", level28.bossName)
+        assertEquals(BattleMode.MELEE_PLATFORMER, level28.mode)
+        assertTrue(level28.enableBoardOfDirectors)
+        assertTrue(level28.enablePistol)
+        assertTrue(level28.enablePlatforms)
+        assertTrue(level28.multiPhase)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -921,5 +929,44 @@ class BossBattleEngineTest {
         engine.update(0.016f)
         assertEquals(0, ivanone.hp)
         assertEquals(GameStatus.VICTORY, engine.state.status)
+    }
+
+    @Test
+    fun levelTwentyEightBoardPlatformerPistolAndThreePhases() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_28)
+        engine.startGame()
+
+        val lollo = engine.state.boss
+        val ivanone = engine.state.secondaryBoss
+        assertNotNull(ivanone)
+        assertTrue(engine.state.platforms.isNotEmpty())
+        assertEquals(1, lollo.phase)
+        assertEquals(1, ivanone!!.phase)
+
+        // Platformer character fires horizontal pistol bullet with triggerMeleeAttack()
+        engine.state.player.facingDir = 1
+        assertTrue(engine.triggerMeleeAttack())
+        val bullet = engine.state.projectiles.firstOrNull { it.fromPlayer && it.kind == ProjectileKind.PLAYER_BOLT }
+        assertNotNull(bullet)
+        assertTrue(bullet!!.vx > 0f)
+        assertEquals(0f, bullet.vy, 0.01f)
+
+        // Drop combined Board HP below 66% -> Phase 2 (shockwaves unlocked!)
+        lollo.hp = 150
+        ivanone.hp = 150
+        engine.update(0.016f)
+        assertEquals(2, lollo.phase)
+        assertEquals(2, ivanone.phase)
+
+        lollo.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.SHOCKWAVE })
+
+        // Drop combined Board HP below 33% -> Phase 3!
+        lollo.hp = 70
+        ivanone.hp = 70
+        engine.update(0.016f)
+        assertEquals(3, lollo.phase)
+        assertEquals(3, ivanone.phase)
     }
 }

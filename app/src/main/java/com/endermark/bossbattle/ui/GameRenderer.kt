@@ -523,7 +523,7 @@ class GameRenderer {
         drawMovingPlatforms(canvas, state)
         val secondaryBoss = state.secondaryBoss
         if (state.level.enableBoardOfDirectors && secondaryBoss != null) {
-            drawDualBossHealthBars(canvas, state.boss, secondaryBoss, state.worldWidth)
+            drawDualBossHealthBars(canvas, state.boss, secondaryBoss, state.worldWidth, state.level.multiPhase)
         } else if (state.level.enableTurretFortress && state.hasActiveTurrets) {
             drawFortressSealedBar(canvas, state)
         } else {
@@ -570,10 +570,10 @@ class GameRenderer {
 
         when {
             isMelee -> {
-                drawMeleeCharacter(canvas, state.player, state.elapsedTime, state.level.hasShield)
+                drawMeleeCharacter(canvas, state.player, state.elapsedTime, state.level.hasShield, state.level.enablePistol)
                 val hudY = if (state.boss.maxArmor > 0) 204f else 178f
                 drawPlayerHud(canvas, state.player, baseY = hudY, showWeaponStatus = state.level.enablePickups)
-                drawMeleeControls(canvas, state.level.hasShield)
+                drawMeleeControls(canvas, state.level.hasShield, state.level.enablePistol)
             }
             isFreeFlight -> {
                 drawRotatedPlayerShip(canvas, state.player, state.elapsedTime)
@@ -1125,7 +1125,8 @@ class GameRenderer {
         canvas: Canvas,
         player: Player,
         elapsedTime: Float,
-        hasShield: Boolean
+        hasShield: Boolean,
+        enablePistol: Boolean = false
     ) {
         if (player.isInvulnerable && ((elapsedTime * 16f).toInt() % 2 == 0)) {
             return
@@ -1158,30 +1159,52 @@ class GameRenderer {
 
         val armStartX = x + dir * 12f
         val armStartY = y - r * 0.1f
-        when (player.weapon) {
-            WeaponType.HAMMER -> {
-                val tipX = if (player.isAttacking) x + dir * 90f else x + dir * 56f
-                val tipY = if (player.isAttacking) y + 4f else y - 28f
-                canvas.drawLine(armStartX, armStartY, tipX, tipY, swordPaint)
-                tempRect.set(tipX - 20f, tipY - 14f, tipX + 20f, tipY + 14f)
-                canvas.drawRoundRect(tempRect, 6f, 6f, hanoiLanternGoldPaint)
-                canvas.drawRoundRect(tempRect, 6f, 6f, controlAttackBorderPaint)
+        if (enablePistol) {
+            val recoil = if (player.isAttacking) -6f * dir else 0f
+            val gunBaseX = x + dir * 20f + recoil
+            val gunY = y - 10f
+            val barrelTipX = gunBaseX + dir * 34f
+            bossArmorPaint.color = Color.parseColor("#37474F")
+            tempRect.set(
+                min(gunBaseX, barrelTipX),
+                gunY - 7f,
+                kotlin.math.max(gunBaseX, barrelTipX),
+                gunY + 5f
+            )
+            canvas.drawRoundRect(tempRect, 4f, 4f, bossArmorPaint)
+            canvas.drawRoundRect(tempRect, 4f, 4f, bossOutlinePaint)
+            tempRect.set(gunBaseX - 6f, gunY + 2f, gunBaseX + 6f, gunY + 18f)
+            canvas.drawRoundRect(tempRect, 3f, 3f, bossArmorPaint)
+            if (player.isAttacking) {
+                canvas.drawCircle(barrelTipX + dir * 8f, gunY - 1f, 12f, hanoiLanternGoldPaint)
+                canvas.drawCircle(barrelTipX + dir * 8f, gunY - 1f, 6f, swissCrossWhitePaint)
             }
-            WeaponType.KATANA -> {
-                val tipX = if (player.isAttacking) x + dir * 98f else x + dir * 64f
-                val tipY = if (player.isAttacking) y - 8f else y - 34f
-                canvas.drawLine(armStartX, armStartY, tipX, tipY, speechBubbleBorderPaint)
-            }
-            WeaponType.SPEAR -> {
-                val tipX = if (player.isAttacking) x + dir * 112f else x + dir * 74f
-                val tipY = y - 10f
-                canvas.drawLine(armStartX, armStartY, tipX, tipY, chanGoldTrimPaint)
-                canvas.drawCircle(tipX, tipY, 8f, hanoiLanternGoldPaint)
-            }
-            WeaponType.SWORD -> {
-                val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
-                val swordTipY = if (player.isAttacking) y - 6f else y - 24f
-                canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
+        } else {
+            when (player.weapon) {
+                WeaponType.HAMMER -> {
+                    val tipX = if (player.isAttacking) x + dir * 90f else x + dir * 56f
+                    val tipY = if (player.isAttacking) y + 4f else y - 28f
+                    canvas.drawLine(armStartX, armStartY, tipX, tipY, swordPaint)
+                    tempRect.set(tipX - 20f, tipY - 14f, tipX + 20f, tipY + 14f)
+                    canvas.drawRoundRect(tempRect, 6f, 6f, hanoiLanternGoldPaint)
+                    canvas.drawRoundRect(tempRect, 6f, 6f, controlAttackBorderPaint)
+                }
+                WeaponType.KATANA -> {
+                    val tipX = if (player.isAttacking) x + dir * 98f else x + dir * 64f
+                    val tipY = if (player.isAttacking) y - 8f else y - 34f
+                    canvas.drawLine(armStartX, armStartY, tipX, tipY, speechBubbleBorderPaint)
+                }
+                WeaponType.SPEAR -> {
+                    val tipX = if (player.isAttacking) x + dir * 112f else x + dir * 74f
+                    val tipY = y - 10f
+                    canvas.drawLine(armStartX, armStartY, tipX, tipY, chanGoldTrimPaint)
+                    canvas.drawCircle(tipX, tipY, 8f, hanoiLanternGoldPaint)
+                }
+                WeaponType.SWORD -> {
+                    val swordTipX = if (player.isAttacking) x + dir * 82f else x + dir * 48f
+                    val swordTipY = if (player.isAttacking) y - 6f else y - 24f
+                    canvas.drawLine(armStartX, armStartY, swordTipX, swordTipY, swordPaint)
+                }
             }
         }
 
@@ -1208,7 +1231,7 @@ class GameRenderer {
             }
         }
 
-        if (player.isAttacking) {
+        if (!enablePistol && player.isAttacking) {
             val arcRadius = if (player.weapon == WeaponType.HAMMER) 76f else 58f
             val arcCenterX = x + dir * 48f
             tempRect.set(arcCenterX - arcRadius, y - arcRadius, arcCenterX + arcRadius, y + arcRadius)
@@ -1217,14 +1240,19 @@ class GameRenderer {
         }
     }
 
-    private fun drawMeleeControls(canvas: Canvas, hasShield: Boolean) {
+    private fun drawMeleeControls(canvas: Canvas, hasShield: Boolean, enablePistol: Boolean = false) {
         drawControlButton(canvas, leftButtonRect(hasShield), "◀", style = ControlStyle.NORMAL)
         drawControlButton(canvas, rightButtonRect(hasShield), "▶", style = ControlStyle.NORMAL)
         if (hasShield) {
             drawControlButton(canvas, shieldButtonRect(), "SCUDO", style = ControlStyle.SHIELD)
         }
         drawControlButton(canvas, jumpButtonRect(hasShield), "SALTA", style = ControlStyle.NORMAL)
-        drawControlButton(canvas, attackButtonRect(hasShield), "COLPO", style = ControlStyle.ATTACK)
+        drawControlButton(
+            canvas,
+            attackButtonRect(hasShield),
+            if (enablePistol) "SPARA" else "COLPO",
+            style = ControlStyle.ATTACK
+        )
     }
 
     private enum class ControlStyle {
@@ -2667,7 +2695,8 @@ class GameRenderer {
         canvas: Canvas,
         leftBoss: Boss,
         rightBoss: Boss,
-        worldWidth: Float
+        worldWidth: Float,
+        multiPhase: Boolean = false
     ) {
         val marginX = 44f
         val gap = 28f
@@ -2710,10 +2739,19 @@ class GameRenderer {
         drawOneBar(leftBoss, marginX, Color.parseColor("#E53935"), Color.parseColor("#FF7043"))
         drawOneBar(rightBoss, marginX + barWidth + gap, Color.parseColor("#8E24AA"), Color.parseColor("#FFAB00"))
 
-        val statusText = when {
-            leftBoss.hp > 0 && rightBoss.hp > 0 -> "BOARD OF DIRECTORS • SINERGIA ATTIVA"
-            leftBoss.hp > 0 -> "LOLLO SUPER-CEO! HA PRESO TUTTO IL BOARD!"
-            else -> "IVANONE SUPER-CEO! HA PRESO TUTTO IL BOARD!"
+        val currentPhase = kotlin.math.max(leftBoss.phase, rightBoss.phase)
+        val statusText = if (multiPhase) {
+            when (currentPhase) {
+                1 -> "FASE 1/3 • RIUNIONE PRELIMINARE"
+                2 -> "FASE 2/3 • RISTRUTTURAZIONE"
+                else -> "FASE 3/3 • CONSIGLIO DI CRISI!"
+            }
+        } else {
+            when {
+                leftBoss.hp > 0 && rightBoss.hp > 0 -> "BOARD OF DIRECTORS • SINERGIA ATTIVA"
+                leftBoss.hp > 0 -> "LOLLO SUPER-CEO! HA PRESO TUTTO IL BOARD!"
+                else -> "IVANONE SUPER-CEO! HA PRESO TUTTO IL BOARD!"
+            }
         }
         phaseBadgePaint.textAlign = Paint.Align.RIGHT
         canvas.drawText(statusText, worldWidth - marginX, 158f, phaseBadgePaint)

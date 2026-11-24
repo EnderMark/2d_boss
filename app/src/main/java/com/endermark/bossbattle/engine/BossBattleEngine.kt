@@ -137,6 +137,27 @@ class BossBattleEngine(
         if (player.meleeCooldown > 0f || player.isBlocking) {
             return false
         }
+        if (level.enablePistol) {
+            player.meleeTimer = 0.12f
+            player.meleeCooldown = 0.26f
+            player.meleeHitApplied = true
+            emitSound(GameSoundEvent.PLAYER_SHOT)
+            val dmg = if (player.hasDamageBoost) 20 else 10
+            state.projectiles.add(
+                Projectile(
+                    x = player.x + player.facingDir * 42f,
+                    y = player.y - 8f,
+                    vx = player.facingDir * 940f,
+                    vy = 0f,
+                    radius = 12f,
+                    fromPlayer = true,
+                    damage = dmg,
+                    kind = ProjectileKind.PLAYER_BOLT
+                )
+            )
+            return true
+        }
+
         player.meleeTimer = MELEE_DURATION
         player.meleeCooldown = when (player.weapon) {
             WeaponType.KATANA -> 0.18f
@@ -245,6 +266,22 @@ class BossBattleEngine(
                 facingDir = -1
                 vanishTimer = 0f
                 hitsSinceVanish = 0
+            }
+            if (level.enableBoardOfDirectors) {
+                state.secondaryBoss = Boss(
+                    name = "IVANONE",
+                    x = state.worldWidth * 0.78f,
+                    y = 785f,
+                    radius = 68f,
+                    hp = level.bossMaxHp,
+                    maxHp = level.bossMaxHp,
+                    displayedHp = level.bossMaxHp.toFloat(),
+                    phase = 1,
+                    velocityX = -level.bossBaseSpeed * 0.9f,
+                    attackCooldown = 2.1f
+                )
+            } else {
+                state.secondaryBoss = null
             }
         } else {
             state.player.apply {
@@ -1312,11 +1349,194 @@ class BossBattleEngine(
         }
     }
 
+    private fun updatePlatformBoardOfDirectors(dt: Float) {
+        val lollo = state.boss
+        val ivanone = state.secondaryBoss
+        val player = state.player
+
+        // Synchronize 3 phases based on combined Board HP (Phase 1 > 66%, Phase 2 33-66%, Phase 3 <= 33%)
+        val totalMax = (lollo.maxHp + (ivanone?.maxHp ?: 0)).coerceAtLeast(1)
+        val totalHp = lollo.hp + (ivanone?.hp ?: 0)
+        val combinedRatio = totalHp.toFloat() / totalMax.toFloat()
+        val currentPhase = max(lollo.phase, ivanone?.phase ?: 1)
+        val targetPhase = when {
+            combinedRatio <= 0.33f -> 3
+            combinedRatio <= 0.66f -> 2
+            else -> 1
+        }
+        if (targetPhase > currentPhase) {
+            lollo.phase = targetPhase
+            if (ivanone != null) ivanone.phase = targetPhase
+            state.phaseFlashTimer = if (targetPhase >= 3) 0.60f else 0.45f
+            emitSound(GameSoundEvent.BOSS_CHARGE)
+            spawnHitParticles(lollo.x, lollo.y, COLOR_SHIELD_BLOCK_SPARK, 18)
+            if (ivanone != null && ivanone.hp > 0) {
+                spawnHitParticles(ivanone.x, ivanone.y, COLOR_SHIELD_BLOCK_SPARK, 18)
+            }
+        }
+        val phase = max(lollo.phase, ivanone?.phase ?: 1)
+        val phaseInterval = when (phase) {
+            1 -> level.bossAttackInterval
+            2 -> (level.bossAttackInterval + level.bossEnragedAttackInterval) * 0.5f
+            else -> level.bossEnragedAttackInterval
+        }
+        val projSpeed = when (phase) {
+            1 -> level.bossProjectileSpeed
+            2 -> (level.bossProjectileSpeed + level.bossEnragedProjectileSpeed) * 0.5f
+            else -> level.bossEnragedProjectileSpeed
+        }
+
+        // Lollo Zurich patrols smoothly on the ground
+        if (lollo.hp > 0) {
+            val minX = lollo.radius + ARENA_PADDING
+            val maxX = state.worldWidth - lollo.radius - ARENA_PADDING
+            lollo.y = state.groundY - lollo.radius
+            val speedMult = if (phase >= 3 || (ivanone != null && ivanone.hp <= 0)) 1.30f else if (phase == 2) 1.12f else 1.0f
+            lollo.x += lollo.velocityX * speedMult * dt
+            if (lollo.x <= minX) {
+                lollo.x = minX
+                lollo.velocityX = abs(level.bossBaseSpeed)
+            } else if (lollo.x >= maxX) {
+                lollo.x = maxX
+                lollo.velocityX = -abs(level.bossBaseSpeed)
+            }
+            lollo.facingDir = if (player.x >= lollo.x) 1 else -1
+
+            lollo.attackCooldown -= dt
+            if (lollo.attackCooldown <= 0f) {
+                emitSound(GameSoundEvent.BOSS_ATTACK)
+                val baseAngle = atan2((player.y - lollo.y).toDouble(), (player.x - lollo.x).toDouble())
+                val label = BOARD_LOLLO_QUOTES[complaintIndex % BOARD_LOLLO_QUOTES.size]
+                complaintIndex += 1
+                state.projectiles.add(
+                    Projectile(
+                        x = lollo.x,
+                        y = lollo.y - 16f,
+                        vx = (cos(baseAngle) * projSpeed * 0.92f).toFloat(),
+                        vy = (sin(baseAngle) * projSpeed * 0.92f).toFloat(),
+                        radius = 26f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.COMPLAINT,
+                        label = label
+                    )
+                )
+                if (phase >= 2) {
+                    // Ground shockwave that player jumps over onto platforms!
+                    state.projectiles.add(
+                        Projectile(
+                            x = lollo.x,
+                            y = state.groundY - 26f,
+                            vx = lollo.facingDir * projSpeed * 0.85f,
+                            vy = 0f,
+                            radius = 26f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.SHOCKWAVE
+                        )
+                    )
+                }
+                if (phase >= 3) {
+                    state.projectiles.add(
+                        Projectile(
+                            x = lollo.x,
+                            y = lollo.y - 24f,
+                            vx = (cos(baseAngle - 0.22) * projSpeed).toFloat(),
+                            vy = (sin(baseAngle - 0.22) * projSpeed).toFloat(),
+                            radius = 22f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.COMPUTER,
+                            label = "PC"
+                        )
+                    )
+                }
+                lollo.attackCooldown = phaseInterval
+            }
+        }
+
+        // Ivanone patrols upper platform lane and vanishes every 4 hits
+        if (ivanone != null && ivanone.hp > 0) {
+            if (ivanone.hitFlashTimer > 0f) {
+                ivanone.hitFlashTimer = max(0f, ivanone.hitFlashTimer - dt)
+            }
+            val minX = ivanone.radius + ARENA_PADDING
+            val maxX = state.worldWidth - ivanone.radius - ARENA_PADDING
+            if (ivanone.vanishTimer > 0f) {
+                ivanone.vanishTimer = max(0f, ivanone.vanishTimer - dt)
+                if (ivanone.vanishTimer <= 0f) {
+                    ivanone.x = if (player.x < state.worldWidth * 0.5f) {
+                        (state.worldWidth * 0.80f).coerceIn(minX, maxX)
+                    } else {
+                        (state.worldWidth * 0.20f).coerceIn(minX, maxX)
+                    }
+                    ivanone.y = 785f
+                    emitSound(GameSoundEvent.BOSS_VANISH)
+                    spawnHitParticles(ivanone.x, ivanone.y, COLOR_VANISH_SMOKE, 16)
+                }
+                return
+            }
+
+            ivanone.y = 785f + sin(state.elapsedTime * 1.8f) * 26f
+            val speedMult = if (phase >= 3 || lollo.hp <= 0) 1.30f else if (phase == 2) 1.12f else 1.0f
+            ivanone.x += ivanone.velocityX * speedMult * dt
+            if (ivanone.x <= minX) {
+                ivanone.x = minX
+                ivanone.velocityX = abs(level.bossBaseSpeed * 0.9f)
+            } else if (ivanone.x >= maxX) {
+                ivanone.x = maxX
+                ivanone.velocityX = -abs(level.bossBaseSpeed * 0.9f)
+            }
+            ivanone.facingDir = if (player.x >= ivanone.x) 1 else -1
+
+            ivanone.attackCooldown -= dt
+            if (ivanone.attackCooldown <= 0f) {
+                emitSound(GameSoundEvent.CAMERA_SHUTTER)
+                val baseAngle = atan2((player.y - ivanone.y).toDouble(), (player.x - ivanone.x).toDouble())
+                state.projectiles.add(
+                    Projectile(
+                        x = ivanone.x,
+                        y = ivanone.y,
+                        vx = (cos(baseAngle) * projSpeed).toFloat(),
+                        vy = (sin(baseAngle) * projSpeed).toFloat(),
+                        radius = 24f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.CAMERA_FLASH
+                    )
+                )
+                if (phase >= 2) {
+                    val offsets = if (phase >= 3) listOf(-0.28, 0.28) else listOf(-0.24)
+                    for (offset in offsets) {
+                        val a = baseAngle + offset
+                        state.projectiles.add(
+                            Projectile(
+                                x = ivanone.x,
+                                y = ivanone.y,
+                                vx = (cos(a) * projSpeed * 0.92f).toFloat(),
+                                vy = (sin(a) * projSpeed * 0.92f).toFloat(),
+                                radius = 22f,
+                                fromPlayer = false,
+                                damage = 1,
+                                kind = ProjectileKind.DRONE
+                            )
+                        )
+                    }
+                }
+                ivanone.attackCooldown = phaseInterval * 1.08f
+            }
+        }
+    }
+
     private fun updateMeleeBoss(dt: Float) {
         val boss = state.boss
         val player = state.player
         if (boss.hitFlashTimer > 0f) {
             boss.hitFlashTimer = max(0f, boss.hitFlashTimer - dt)
+        }
+        if (level.enableBoardOfDirectors) {
+            updatePlatformBoardOfDirectors(dt)
+            return
         }
 
         val minX = boss.radius + ARENA_PADDING
@@ -1918,7 +2138,7 @@ class BossBattleEngine(
                 emitSound(GameSoundEvent.VICTORY)
             } else {
                 // Surviving Board member absorbs the other seat -> SUPER-CEO MODE!
-                partner.phase = 2
+                partner.phase = max(partner.phase, 2)
                 partner.hp = min(partner.maxHp, partner.hp + 30)
                 partner.displayedHp = max(partner.displayedHp, partner.hp.toFloat())
                 state.phaseFlashTimer = 0.65f
@@ -2835,6 +3055,7 @@ class BossBattleEngine(
         val playerRadius = 36f
         val bossRadius = when {
             level.enableGiantLollo -> 128f
+            level.enableBoardOfDirectors && isMelee -> 66f
             level.enableBoardOfDirectors -> 78f
             level.arenaTheme == ArenaTheme.HANOI -> 64f
             level.arenaTheme == ArenaTheme.HANOI_SPA -> 68f
@@ -2884,14 +3105,15 @@ class BossBattleEngine(
             secondaryBoss = if (level.enableBoardOfDirectors) {
                 Boss(
                     name = "IVANONE",
-                    x = worldWidth * 0.72f,
-                    y = 390f,
-                    radius = 80f,
+                    x = if (isMelee) worldWidth * 0.78f else worldWidth * 0.72f,
+                    y = if (isMelee) 785f else 390f,
+                    radius = if (isMelee) 68f else 80f,
                     hp = level.bossMaxHp,
                     maxHp = level.bossMaxHp,
                     displayedHp = level.bossMaxHp.toFloat(),
                     phase = 1,
-                    attackCooldown = 1.35f
+                    velocityX = if (isMelee) -level.bossBaseSpeed * 0.9f else 0f,
+                    attackCooldown = if (isMelee) 2.1f else 1.35f
                 )
             } else {
                 null

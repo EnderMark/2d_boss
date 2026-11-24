@@ -43,6 +43,7 @@ data class BossLevel(
     val enableFuriousLollo: Boolean = false,
     val enableTechLeadLollo: Boolean = false,
     val enableBoardOfDirectors: Boolean = false,
+    val enablePistol: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -542,6 +543,27 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_28 = BossLevel(
+        id = 28,
+        title = "LIVELLO 28 • BOARD PLATFORM",
+        bossName = "BOARD OF DIRECTORS",
+        subtitle = "Platform con Pistola • Lollo + Ivanone in 3 fasi su piattaforme mobili!",
+        mode = BattleMode.MELEE_PLATFORMER,
+        arenaTheme = ArenaTheme.ZURICH,
+        hasShield = false,
+        bossMaxHp = 240,
+        multiPhase = true,
+        enablePlatforms = true,
+        enableBoardOfDirectors = true,
+        enablePistol = true,
+        bossBaseSpeed = 125f,
+        bossAttackInterval = 2.35f,
+        bossEnragedAttackInterval = 1.75f,
+        bossProjectileSpeed = 370f,
+        bossEnragedProjectileSpeed = 450f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -569,7 +591,8 @@ object LevelCatalog {
         LEVEL_24,
         LEVEL_25,
         LEVEL_26,
-        LEVEL_27
+        LEVEL_27,
+        LEVEL_28
     )
 
     fun findById(id: Int): BossLevel {
