@@ -1,35 +1,42 @@
-# 2D Boss Battle (Android)
+# 2D Boss Battle (Android + Web — Kotlin Multiplatform)
 
-Applicazione Android in Kotlin per un gioco 2D incentrato su Boss Battle, con **musica di sottofondo chiptune** ed **effetti sonori** sintetizzati (`SoundManager`).
+Gioco 2D incentrato su **Boss Battle** in **Kotlin Multiplatform**:
+- `:shared` — Motore di gioco (`BossBattleEngine`), modelli (`GameModels`) e catalogo livelli (`LevelCatalog`) condivisi al 100% tra Android e Web.
+- `:app` — App nativa Android (`Canvas` + `AudioTrack` chiptune).
+- `:web` — WebApp **Kotlin/JS + HTML5 Canvas + Web Audio API** giocabile da browser su iPhone, Android, Mac e PC, pronta per il deploy su **Cloudflare Pages**.
 
-## Livelli disponibili
+## Livelli disponibili (22 livelli)
 
-- **Menù dei livelli**: schermata iniziale di selezione livello (`LevelSelectActivity`).
-- **Livello 1 — `GUARDIANO D'OMBRA`**: Navicella 2D, schiva e distruggi il custode.
-- **Livello 2 — `COLOSSO DI FERRO`**: Platformer in mischia con salto, doppio salto e attacco di spada.
-- **Livello 3 — `CHAN` (Hanoi)**: Spada e scudo (`SCUDO`) contro la guerriera delle lanterne al tramonto su Hanoi.
-- **Livello 4 — `LOLLO ZURICH`**: Senza scudo a Zurigo, contro fumetti di lamentele in italiano.
-- **Livello 5 — `IVANONE`**: Fisico scolpito, droni, flash fotografici e sparizioni improvvise.
-- **Livello 6 — `ALESSIO DELLE TASSE`**: Moduli fiscali di Zurigo, superiorità morale e mossa speciale con lo **strano dente**.
-- **Livello 7 — `LOUISE`**: Ragazza francese dagli occhi azzurri a Parigi: ti seduce con cuori e frasi francesi, ma ti evita appena ti avvicini.
-- **Livello 8 — `DAISY`**: Ragazza calabrese di **UBS**, urla e si lamenta perché non la inviti mai alle hike.
-- **Livello 9 — `ANDREA DATTERO`**: Magrissimo con felpa **MOSCHINO**, tenta il grappling ravvicinato, lancia ciotole da **200g di riso e pollo** e si vanta di essere un 10x software engineer (tra crash e bug).
-- **Livello 10 — `MARCO DI GOOGLE`**: Sfreccia in **Porsche bianca** davanti al Google Campus, cerca di fare dating ripetendo `"SONO PIENO DI MILIONI!"` e scatta foto con flash fotografici dal finestrino.
-- **Livello 11 — `CARAMEL` (Hanoi Spa)**: Boss fight avanzata a **3 fasi** contro la massaggiatrice di Hanoi, con **armatura da spezzare** (stordimento ad ogni rottura), **armi raccoglibili** (`MARTELLO` spacca-armatura, `KATANA` rapida, `LANCIA` con onda d'energia) e **power-up** (`+1 VITA`, `VELOCITÀ`, `FURIA x2`).
-- **Livelli 12–19 — Modalità `ARCADE` (stile Livello 1 / Arkanoid)**: ripropongono tutti i boss da **Lollo Zurich** fino a **Caramel** in versione navicella dall'alto verso il basso, ciascuno con i propri attacchi a tema (lamentele, droni/flash/sparizioni, tasse & strano dente, cuori & schivate, urla UBS, riso & pollo, Porsche & milioni, pietre calde a 3 fasi con armatura).
-- **Livello 20 • FINALE — `OMEGA ARCHITECT`**: Gran finale a **3 fasi con 3 scenari dinamici** (*Cyber Citadel* → *Vulcano Cosmico* → *Singolarità Omega*), **piattaforme mobili** su cui saltare, **raggi laser telegrafati** orizzontali e verticali con effetti speciali, **armatura da spezzare** (100 / 70 / 60) con stordimento, **armi raccoglibili** e **power-up**.
-- **Livello 21 • SPAZIO 360° — `DREADNOUGHT STELLARE`**: Volo libero su tutto lo schermo con **pad analogico virtuale** (movimento 360° + rotazione) e pulsante **FUOCO**, contro una grande astronave boss che spara salve al plasma e genera **piccole navicelle scagnozze** abbattibili (spawn bilanciato -50%).
-- **Livello 22 • PUNTI DEBOLI — `CORAZZATA AEGIS`**: Volo libero 360° senza scagnozzi. La corazzata è **invincibile** finché non distruggi i suoi **3 punti deboli** (1 dietro e 2 ai lati), dopodiché perde lo scudo e può essere danneggiata.
-- **Livello 23 • FORTEZZA ORBITALE — `BASTIONE ORBITALE`**: Volo libero 360° circondato da **8 torrette difensive** disposte tutt'attorno all'arena che sparano verso il giocatore. Una volta distrutte tutte le torrette, si sblocca la **super-torretta boss in alto** con la vera barra della vita e potenti salve al plasma.
-- **Livello 24 • LOLLO GIGANTE — `LOLLO ZURICH GIGANTE`**: Enorme testa pelata in volo libero 360° che attacca lanciando **computer, divani e televisioni**. Lollo è invincibile finché non respingi contro di lui sia una **TV** sia un **Divano**: entra allora in stato **INGOLFATO** e diventa vulnerabile ai colpi!
-- **Livello 25 • LOLLO INFURIATO — `LOLLO GIGANTE INFURIATO`**: Versione infuocata e più difficile di Lollo Gigante con fiamme sulla pelata, vapore dalle orecchie, **raggi laser telegrafati** (e a croce sotto il 50% HP), stato **INGOLFATO dimezzato** (`3.25s`) ed **esplosione radiale di rabbia** appena si riprende!
-- **Livello 26 • TECH LEAD — `LOLLO TECH LEAD`**: Lollo in camicia e **cravatta rossa** in **3 fasi**, spawna **programmatori kamikaze** che ti inseguono per esploderti addosso; in **Fase 3** spara **nuvole di scorregge tossiche** e subisce **solo la metà del danno**!
-- **Livello 27 • BOARD OF DIRECTORS — `LOLLO ZURICH + IVANONE`**: Doppio boss simultaneo in volo libero 360°, ciascuno con la **propria barra della vita**! Lollo lancia lamentele da board e laptop, Ivanone usa droni, flash fotografici e teletrasporto; quando abbatti uno dei due, il superstite diventa **SUPER-CEO** combinando gli attacchi di entrambi!
-- **Livello 28 • BOARD PLATFORM — `LOLLO ZURICH + IVANONE` (Platform + Pistola)**: Stile platform run-and-gun con **omino armato di pistola** (`SPARA`), **piattaforme mobili**, ritmo più ragionato e **3 fasi progressive** (*Riunione Preliminare* → *Ristrutturazione* → *Consiglio di Crisi*) contro la Board of Directors!
-- **Controlli Audio**: barra volume e toggle separati per **Musica** ed **Effetti (SFX)** disponibili sia nel menù livelli sia in battaglia.
+1. **Livello 1 — `GUARDIANO D'OMBRA`**: Navicella 2D, schiva e distruggi il custode.
+2. **Livello 2 — `COLOSSO DI FERRO`**: Platformer in mischia con salto, doppio salto e attacco di spada.
+3. **Livello 3 — `CHAN` (Hanoi)**: Spada e scudo (`SCUDO`) contro la guerriera delle lanterne al tramonto su Hanoi.
+4. **Livello 4 — `LOLLO ZURICH`**: Senza scudo a Zurigo, contro fumetti di lamentele in italiano.
+5. **Livello 5 — `IVANONE`**: Fisico scolpito, droni, flash fotografici e sparizioni improvvise.
+6. **Livello 6 — `LOUISE`**: Ragazza francese dagli occhi azzurri a Parigi: ti seduce con cuori, ma ti evita appena ti avvicini.
+7. **Livello 7 — `MARCO DI GOOGLE`**: Porsche bianca, `"SONO PIENO DI MILIONI!"` e flash fotografici.
+8. **Livello 8 — `CARAMEL` (Hanoi Spa)**: 3 fasi, armatura da spezzare, armi raccoglibili (`MARTELLO`, `KATANA`, `LANCIA`) e power-up.
+9. **Livelli 9–13 — Modalità `ARCADE`**: Lollo Zurich, Ivanone, Louise, Marco di Google e Caramel in versione navicella stile Livello 1.
+10. **Livello 14 • FINALE — `OMEGA ARCHITECT`**: 3 fasi e 3 scenari dinamici, piattaforme mobili, raggi laser telegrafati, armatura e power-up.
+11. **Livello 15 • SPAZIO 360° — `DREADNOUGHT STELLARE`**: Volo libero 360° con pad virtuale + scagnozzi.
+12. **Livello 16 • PUNTI DEBOLI — `CORAZZATA AEGIS`**: Volo libero 360°, invincibile finché non distruggi i 3 punti deboli (dietro e ai lati).
+13. **Livello 17 • FORTEZZA ORBITALE — `BASTIONE ORBITALE`**: 8 torrette perimetrali che sbloccano la super-torretta boss in alto.
+14. **Livello 18 • LOLLO GIGANTE — `LOLLO ZURICH GIGANTE`**: Enorme testa pelata; respingi TV e Divano per mandarlo in stato **INGOLFATO**.
+15. **Livello 19 • LOLLO INFURIATO — `LOLLO GIGANTE INFURIATO`**: Ingolfato per metà tempo (`3.25s`), raggi laser ed esplosioni di rabbia.
+16. **Livello 20 • TECH LEAD — `LOLLO TECH LEAD`**: Cravatta rossa, 3 fasi, programmatori kamikaze, scorregge e -50% danni in Fase 3.
+17. **Livello 21 • BOARD OF DIRECTORS — `LOLLO ZURICH + IVANONE`**: Doppio boss simultaneo con due barre HP e modalità Super-CEO.
+18. **Livello 22 • BOARD PLATFORM — `LOLLO ZURICH + IVANONE` (Platform + Pistola)**: Omino platform con pistola (`SPARA`), piattaforme mobili e 3 fasi.
 
-## Build e Test
+## Build e Deploy (Android + Web / Cloudflare Pages)
 
 ```bash
-./gradlew testDebugUnitTest assembleDebug
+# Test e APK Android
+./gradlew :app:testDebugUnitTest :app:assembleDebug
+
+# Bundle Web Kotlin/JS (output in web/build/dist/js/productionExecutable/)
+./gradlew :web:jsBrowserDistribution
 ```
+
+### Deploy automatico su Cloudflare Pages
+Il workflow [`.github/workflows/web-deploy.yml`](.github/workflows/web-deploy.yml) compila automaticamente la webapp ad ogni push su `main` e la pubblica sul progetto Cloudflare Pages `2d-boss-battle` appena aggiungi questi 2 secret nelle impostazioni del repo GitHub (`Settings → Secrets and variables → Actions`):
+- `CLOUDFLARE_API_TOKEN` (API Token Cloudflare con permesso *Cloudflare Pages: Edit*)
+- `CLOUDFLARE_ACCOUNT_ID` (il tuo Account ID Cloudflare)

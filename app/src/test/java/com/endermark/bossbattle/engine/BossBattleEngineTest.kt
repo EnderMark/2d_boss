@@ -19,60 +19,56 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyEightLevels() {
-        assertEquals(28, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentyTwoLevels() {
+        assertEquals(22, LevelCatalog.levels.size)
+        assertFalse(LevelCatalog.levels.any { it.bossName.contains("ALESSIO") || it.bossName.contains("DAISY") || it.bossName.contains("ANDREA") })
+
+        val level15 = LevelCatalog.findById(15)
+        assertEquals("DREADNOUGHT STELLARE", level15.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level15.mode)
+        assertTrue(level15.enableMinions)
+        assertFalse(level15.enableWeakPoints)
+
+        val level16 = LevelCatalog.findById(16)
+        assertEquals("CORAZZATA AEGIS", level16.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level16.mode)
+        assertFalse(level16.enableMinions)
+        assertTrue(level16.enableWeakPoints)
+
+        val level17 = LevelCatalog.findById(17)
+        assertEquals("BASTIONE ORBITALE", level17.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level17.mode)
+        assertTrue(level17.enableTurretFortress)
+
+        val level18 = LevelCatalog.findById(18)
+        assertEquals("LOLLO ZURICH GIGANTE", level18.bossName)
+        assertTrue(level18.enableGiantLollo)
+        assertFalse(level18.enableFuriousLollo)
+
+        val level19 = LevelCatalog.findById(19)
+        assertEquals("LOLLO GIGANTE INFURIATO", level19.bossName)
+        assertTrue(level19.enableGiantLollo)
+        assertTrue(level19.enableFuriousLollo)
+        assertTrue(level19.enableLasers)
+
+        val level20 = LevelCatalog.findById(20)
+        assertEquals("LOLLO TECH LEAD", level20.bossName)
+        assertTrue(level20.multiPhase)
+        assertTrue(level20.enableMinions)
+        assertTrue(level20.enableTechLeadLollo)
 
         val level21 = LevelCatalog.findById(21)
-        assertEquals("DREADNOUGHT STELLARE", level21.bossName)
+        assertEquals("BOARD OF DIRECTORS", level21.bossName)
         assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level21.mode)
-        assertTrue(level21.enableMinions)
-        assertFalse(level21.enableWeakPoints)
+        assertTrue(level21.enableBoardOfDirectors)
 
         val level22 = LevelCatalog.findById(22)
-        assertEquals("CORAZZATA AEGIS", level22.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level22.mode)
-        assertFalse(level22.enableMinions)
-        assertTrue(level22.enableWeakPoints)
-
-        val level23 = LevelCatalog.findById(23)
-        assertEquals("BASTIONE ORBITALE", level23.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level23.mode)
-        assertFalse(level23.enableMinions)
-        assertFalse(level23.enableWeakPoints)
-        assertTrue(level23.enableTurretFortress)
-
-        val level24 = LevelCatalog.findById(24)
-        assertEquals("LOLLO ZURICH GIGANTE", level24.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level24.mode)
-        assertTrue(level24.enableGiantLollo)
-        assertFalse(level24.enableFuriousLollo)
-
-        val level25 = LevelCatalog.findById(25)
-        assertEquals("LOLLO GIGANTE INFURIATO", level25.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level25.mode)
-        assertTrue(level25.enableGiantLollo)
-        assertTrue(level25.enableFuriousLollo)
-        assertTrue(level25.enableLasers)
-
-        val level26 = LevelCatalog.findById(26)
-        assertEquals("LOLLO TECH LEAD", level26.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level26.mode)
-        assertTrue(level26.multiPhase)
-        assertTrue(level26.enableMinions)
-        assertTrue(level26.enableTechLeadLollo)
-
-        val level27 = LevelCatalog.findById(27)
-        assertEquals("BOARD OF DIRECTORS", level27.bossName)
-        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level27.mode)
-        assertTrue(level27.enableBoardOfDirectors)
-
-        val level28 = LevelCatalog.findById(28)
-        assertEquals("BOARD OF DIRECTORS", level28.bossName)
-        assertEquals(BattleMode.MELEE_PLATFORMER, level28.mode)
-        assertTrue(level28.enableBoardOfDirectors)
-        assertTrue(level28.enablePistol)
-        assertTrue(level28.enablePlatforms)
-        assertTrue(level28.multiPhase)
+        assertEquals("BOARD OF DIRECTORS", level22.bossName)
+        assertEquals(BattleMode.MELEE_PLATFORMER, level22.mode)
+        assertTrue(level22.enableBoardOfDirectors)
+        assertTrue(level22.enablePistol)
+        assertTrue(level22.enablePlatforms)
+        assertTrue(level22.multiPhase)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -301,25 +297,8 @@ class BossBattleEngineTest {
     }
 
     @Test
-    fun levelSixAlessioUsesZurichTaxesAndWeirdToothSpecial() {
+    fun levelSixLouiseSeducesWithHeartsAndAvoidsClosePlayer() {
         val engine = BossBattleEngine(level = LevelCatalog.LEVEL_6)
-        engine.startGame()
-
-        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
-        engine.state.boss.actionTimer = 0.01f
-        engine.update(0.02f)
-        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.TAX_FORM })
-
-        engine.state.projectiles.clear()
-        engine.state.boss.action = BossAction.TELEGRAPH_CHARGE
-        engine.state.boss.actionTimer = 0.01f
-        engine.update(0.02f)
-        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.WEIRD_TOOTH })
-    }
-
-    @Test
-    fun levelSevenLouiseSeducesWithHeartsAndAvoidsClosePlayer() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_7)
         engine.startGame()
 
         // Seduction hearts attack
@@ -339,35 +318,8 @@ class BossBattleEngineTest {
     }
 
     @Test
-    fun levelEightDaisyScreamsAboutUbsAndHikes() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_8)
-        engine.startGame()
-
-        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
-        engine.state.boss.actionTimer = 0.01f
-        engine.update(0.02f)
-
-        val screams = engine.state.projectiles.filter { it.kind == ProjectileKind.SCREAM_WAVE }
-        assertTrue(screams.isNotEmpty())
-        assertTrue(BossBattleEngine.DAISY_SCREAMS.contains(screams.first().label))
-    }
-
-    @Test
-    fun levelNineAndreaDatteroThrowsRiceChickenAndBadDevBoasts() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_9)
-        engine.startGame()
-
-        engine.state.boss.action = BossAction.TELEGRAPH_SHOCKWAVE
-        engine.state.boss.actionTimer = 0.01f
-        engine.update(0.02f)
-
-        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.RICE_CHICKEN })
-        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
-    }
-
-    @Test
-    fun levelTenMarcoDiGoogleCameraDatingAndSoundEvents() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_10)
+    fun levelSevenMarcoDiGoogleCameraDatingAndSoundEvents() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_7)
         engine.startGame()
 
         assertTrue(engine.triggerJump())
@@ -390,8 +342,8 @@ class BossBattleEngineTest {
     }
 
     @Test
-    fun levelElevenCaramelArmorPhasesAndPickups() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_11)
+    fun levelEightCaramelArmorPhasesAndPickups() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_8)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -435,14 +387,14 @@ class BossBattleEngineTest {
     @Test
     fun arcadeRemixLevelsFireThemedAttacks() {
         // Level 12: Lollo Zurich in Shooter mode fires Italian complaints
-        val lollo = BossBattleEngine(level = LevelCatalog.LEVEL_12)
+        val lollo = BossBattleEngine(level = LevelCatalog.LEVEL_9)
         lollo.startGame()
         lollo.state.boss.attackCooldown = 0.01f
         lollo.update(0.02f)
         assertTrue(lollo.state.projectiles.any { it.kind == ProjectileKind.COMPLAINT })
 
         // Level 18: Marco di Google in Shooter mode fires camera flashes & dating flex
-        val marco = BossBattleEngine(level = LevelCatalog.LEVEL_18)
+        val marco = BossBattleEngine(level = LevelCatalog.LEVEL_12)
         marco.startGame()
         marco.state.boss.attackCooldown = 0.01f
         marco.update(0.02f)
@@ -450,7 +402,7 @@ class BossBattleEngineTest {
         assertTrue(marco.state.projectiles.any { it.kind == ProjectileKind.DATING_FLEX })
 
         // Level 19: Caramel in Shooter mode fires hot stones and has armor
-        val caramel = BossBattleEngine(level = LevelCatalog.LEVEL_19)
+        val caramel = BossBattleEngine(level = LevelCatalog.LEVEL_13)
         caramel.startGame()
         assertEquals(70, caramel.state.boss.armor)
         caramel.state.boss.attackCooldown = 0.01f
@@ -460,7 +412,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyOmegaFinalePlatformsLasersAndPhases() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_20)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_14)
         engine.startGame()
 
         // Moving platforms initialized and moving
@@ -509,7 +461,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyOneFreeFlightPadAndMinions() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_21)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_15)
         engine.startGame()
 
         val player = engine.state.player
@@ -550,7 +502,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyTwoInvincibleUntilThreeWeakPointsDestroyed() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_22)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_16)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -613,7 +565,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyThreePerimeterTurretsUnlockTopMegaTurret() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_23)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_17)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -682,7 +634,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyFourGiantLolloIngolfatoByTvAndSofa() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_24)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_18)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -783,7 +735,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyFiveFuriousLolloHalfIngolfatoLasersAndRageBurst() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_25)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_19)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -831,7 +783,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentySixTechLeadLolloThreePhasesKamikazeAndFarts() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_26)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_20)
         engine.startGame()
 
         val boss = engine.state.boss
@@ -890,7 +842,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentySevenBoardOfDirectorsDualHealthBarsAndSuperCeo() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_27)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_21)
         engine.startGame()
 
         val lollo = engine.state.boss
@@ -933,7 +885,7 @@ class BossBattleEngineTest {
 
     @Test
     fun levelTwentyEightBoardPlatformerPistolAndThreePhases() {
-        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_28)
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_22)
         engine.startGame()
 
         val lollo = engine.state.boss

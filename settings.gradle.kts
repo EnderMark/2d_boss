@@ -13,12 +13,14 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     repositories {
         google()
         mavenCentral()
     }
 }
 
-rootProject.name = "2D Boss Battle"
+rootProject.name = "boss-battle-2d"
+include(":shared")
 include(":app")
+include(":web")

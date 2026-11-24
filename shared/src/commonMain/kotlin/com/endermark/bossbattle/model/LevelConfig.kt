@@ -141,23 +141,6 @@ object LevelCatalog {
     val LEVEL_6 = BossLevel(
         id = 6,
         title = "LIVELLO 6",
-        bossName = "ALESSIO DELLE TASSE",
-        subtitle = "Zurigo • Tasse, superiorità morale e lo strano dente",
-        mode = BattleMode.MELEE_PLATFORMER,
-        arenaTheme = ArenaTheme.ZURICH_TAX,
-        hasShield = false,
-        bossMaxHp = 170,
-        bossBaseSpeed = 205f,
-        bossAttackInterval = 1.5f,
-        bossEnragedAttackInterval = 1.1f,
-        bossProjectileSpeed = 530f,
-        bossEnragedProjectileSpeed = 650f,
-        isUnlocked = true
-    )
-
-    val LEVEL_7 = BossLevel(
-        id = 7,
-        title = "LIVELLO 7",
         bossName = "LOUISE",
         subtitle = "Parigi • Occhi azzurri: ti seduce e poi ti evita",
         mode = BattleMode.MELEE_PLATFORMER,
@@ -172,43 +155,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_8 = BossLevel(
-        id = 8,
-        title = "LIVELLO 8",
-        bossName = "DAISY",
-        subtitle = "UBS • Urla calabresi e lamentele per le hike mancate",
-        mode = BattleMode.MELEE_PLATFORMER,
-        arenaTheme = ArenaTheme.UBS_ALPS,
-        hasShield = false,
-        bossMaxHp = 180,
-        bossBaseSpeed = 240f,
-        bossAttackInterval = 1.4f,
-        bossEnragedAttackInterval = 1.0f,
-        bossProjectileSpeed = 550f,
-        bossEnragedProjectileSpeed = 680f,
-        isUnlocked = true
-    )
-
-    val LEVEL_9 = BossLevel(
-        id = 9,
-        title = "LIVELLO 9",
-        bossName = "ANDREA DATTERO",
-        subtitle = "Felpa Moschino • Grappling, 200g riso e pollo e bug ovunque",
-        mode = BattleMode.MELEE_PLATFORMER,
-        arenaTheme = ArenaTheme.GYM_DEV,
-        hasShield = false,
-        bossMaxHp = 190,
-        bossBaseSpeed = 275f,
-        bossAttackInterval = 1.35f,
-        bossEnragedAttackInterval = 0.98f,
-        bossProjectileSpeed = 540f,
-        bossEnragedProjectileSpeed = 660f,
-        isUnlocked = true
-    )
-
-    val LEVEL_10 = BossLevel(
-        id = 10,
-        title = "LIVELLO 10",
+    val LEVEL_7 = BossLevel(
+        id = 7,
+        title = "LIVELLO 7",
         bossName = "MARCO DI GOOGLE",
         subtitle = "Porsche bianca • Dating, milioni e flash fotografici",
         mode = BattleMode.MELEE_PLATFORMER,
@@ -223,9 +172,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_11 = BossLevel(
-        id = 11,
-        title = "LIVELLO 11",
+    val LEVEL_8 = BossLevel(
+        id = 8,
+        title = "LIVELLO 8",
         bossName = "CARAMEL",
         subtitle = "Hanoi Spa • 3 Fasi, armatura da spezzare, armi e power-up",
         mode = BattleMode.MELEE_PLATFORMER,
@@ -243,9 +192,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_12 = BossLevel(
-        id = 12,
-        title = "LIVELLO 12 • ARCADE",
+    val LEVEL_9 = BossLevel(
+        id = 9,
+        title = "LIVELLO 9 • ARCADE",
         bossName = "LOLLO ZURICH",
         subtitle = "Navicella • Pioggia di lamentele da Zurigo",
         mode = BattleMode.SHOOTER,
@@ -260,9 +209,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_13 = BossLevel(
-        id = 13,
-        title = "LIVELLO 13 • ARCADE",
+    val LEVEL_10 = BossLevel(
+        id = 10,
+        title = "LIVELLO 10 • ARCADE",
         bossName = "IVANONE",
         subtitle = "Navicella • Droni, flash fotografici e sparizioni",
         mode = BattleMode.SHOOTER,
@@ -277,26 +226,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_14 = BossLevel(
-        id = 14,
-        title = "LIVELLO 14 • ARCADE",
-        bossName = "ALESSIO DELLE TASSE",
-        subtitle = "Navicella • Moduli CHF e lancio dello strano dente",
-        mode = BattleMode.SHOOTER,
-        arenaTheme = ArenaTheme.ZURICH_TAX,
-        hasShield = false,
-        bossMaxHp = 150,
-        bossBaseSpeed = 250f,
-        bossAttackInterval = 1.0f,
-        bossEnragedAttackInterval = 0.75f,
-        bossProjectileSpeed = 540f,
-        bossEnragedProjectileSpeed = 660f,
-        isUnlocked = true
-    )
-
-    val LEVEL_15 = BossLevel(
-        id = 15,
-        title = "LIVELLO 15 • ARCADE",
+    val LEVEL_11 = BossLevel(
+        id = 11,
+        title = "LIVELLO 11 • ARCADE",
         bossName = "LOUISE",
         subtitle = "Navicella • Cuori seducenti e schivate parigine",
         mode = BattleMode.SHOOTER,
@@ -311,43 +243,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_16 = BossLevel(
-        id = 16,
-        title = "LIVELLO 16 • ARCADE",
-        bossName = "DAISY",
-        subtitle = "Navicella • Urla calabresi e lamentele UBS sulle hike",
-        mode = BattleMode.SHOOTER,
-        arenaTheme = ArenaTheme.UBS_ALPS,
-        hasShield = false,
-        bossMaxHp = 160,
-        bossBaseSpeed = 285f,
-        bossAttackInterval = 0.95f,
-        bossEnragedAttackInterval = 0.72f,
-        bossProjectileSpeed = 560f,
-        bossEnragedProjectileSpeed = 680f,
-        isUnlocked = true
-    )
-
-    val LEVEL_17 = BossLevel(
-        id = 17,
-        title = "LIVELLO 17 • ARCADE",
-        bossName = "ANDREA DATTERO",
-        subtitle = "Navicella • 200g riso e pollo e bug da 10x engineer",
-        mode = BattleMode.SHOOTER,
-        arenaTheme = ArenaTheme.GYM_DEV,
-        hasShield = false,
-        bossMaxHp = 165,
-        bossBaseSpeed = 295f,
-        bossAttackInterval = 0.95f,
-        bossEnragedAttackInterval = 0.72f,
-        bossProjectileSpeed = 550f,
-        bossEnragedProjectileSpeed = 660f,
-        isUnlocked = true
-    )
-
-    val LEVEL_18 = BossLevel(
-        id = 18,
-        title = "LIVELLO 18 • ARCADE",
+    val LEVEL_12 = BossLevel(
+        id = 12,
+        title = "LIVELLO 12 • ARCADE",
         bossName = "MARCO DI GOOGLE",
         subtitle = "Navicella • Porsche bianca, milioni e flash fotografici",
         mode = BattleMode.SHOOTER,
@@ -362,9 +260,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_19 = BossLevel(
-        id = 19,
-        title = "LIVELLO 19 • ARCADE",
+    val LEVEL_13 = BossLevel(
+        id = 13,
+        title = "LIVELLO 13 • ARCADE",
         bossName = "CARAMEL",
         subtitle = "Navicella • Hanoi Spa a 3 fasi con armatura e pietre calde",
         mode = BattleMode.SHOOTER,
@@ -382,9 +280,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_20 = BossLevel(
-        id = 20,
-        title = "LIVELLO 20 • FINALE",
+    val LEVEL_14 = BossLevel(
+        id = 14,
+        title = "LIVELLO 14 • FINALE",
         bossName = "OMEGA ARCHITECT",
         subtitle = "3 Scenari & Fasi • Piattaforme mobili, raggi laser, armatura e power-up",
         mode = BattleMode.MELEE_PLATFORMER,
@@ -404,9 +302,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_21 = BossLevel(
-        id = 21,
-        title = "LIVELLO 21 • SPAZIO 360°",
+    val LEVEL_15 = BossLevel(
+        id = 15,
+        title = "LIVELLO 15 • SPAZIO 360°",
         bossName = "DREADNOUGHT STELLARE",
         subtitle = "Pad 360° • Vola libero, ruota, spara e distruggi gli scagnozzi",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -422,9 +320,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_22 = BossLevel(
-        id = 22,
-        title = "LIVELLO 22 • PUNTI DEBOLI",
+    val LEVEL_16 = BossLevel(
+        id = 16,
+        title = "LIVELLO 16 • PUNTI DEBOLI",
         bossName = "CORAZZATA AEGIS",
         subtitle = "Pad 360° • Invincibile: distruggi i 3 punti deboli (dietro e ai lati)",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -441,9 +339,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_23 = BossLevel(
-        id = 23,
-        title = "LIVELLO 23 • FORTEZZA ORBITALE",
+    val LEVEL_17 = BossLevel(
+        id = 17,
+        title = "LIVELLO 17 • FORTEZZA ORBITALE",
         bossName = "BASTIONE ORBITALE",
         subtitle = "Pad 360° • Distruggi tutte le torrette attorno per sbloccare la super-torretta in alto",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -461,9 +359,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_24 = BossLevel(
-        id = 24,
-        title = "LIVELLO 24 • LOLLO GIGANTE",
+    val LEVEL_18 = BossLevel(
+        id = 18,
+        title = "LIVELLO 18 • LOLLO GIGANTE",
         bossName = "LOLLO ZURICH GIGANTE",
         subtitle = "Pad 360° • Respingi TV e Divano contro la testa pelata per ingolfarlo!",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -482,9 +380,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_25 = BossLevel(
-        id = 25,
-        title = "LIVELLO 25 • LOLLO INFURIATO",
+    val LEVEL_19 = BossLevel(
+        id = 19,
+        title = "LIVELLO 19 • LOLLO INFURIATO",
         bossName = "LOLLO GIGANTE INFURIATO",
         subtitle = "Pad 360° • Ingolfato metà tempo, raggi laser ed esplosioni di rabbia!",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -505,9 +403,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_26 = BossLevel(
-        id = 26,
-        title = "LIVELLO 26 • TECH LEAD",
+    val LEVEL_20 = BossLevel(
+        id = 20,
+        title = "LIVELLO 20 • TECH LEAD",
         bossName = "LOLLO TECH LEAD",
         subtitle = "Pad 360° • Cravatta, 3 fasi, programmatori kamikaze e scorregge in Fase 3!",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -525,9 +423,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_27 = BossLevel(
-        id = 27,
-        title = "LIVELLO 27 • BOARD OF DIRECTORS",
+    val LEVEL_21 = BossLevel(
+        id = 21,
+        title = "LIVELLO 21 • BOARD OF DIRECTORS",
         bossName = "BOARD OF DIRECTORS",
         subtitle = "Pad 360° • Ivanone e Lollo Zurich insieme! Due barre vita e modalità Super-CEO!",
         mode = BattleMode.FREE_FLIGHT_SHOOTER,
@@ -543,9 +441,9 @@ object LevelCatalog {
         isUnlocked = true
     )
 
-    val LEVEL_28 = BossLevel(
-        id = 28,
-        title = "LIVELLO 28 • BOARD PLATFORM",
+    val LEVEL_22 = BossLevel(
+        id = 22,
+        title = "LIVELLO 22 • BOARD PLATFORM",
         bossName = "BOARD OF DIRECTORS",
         subtitle = "Platform con Pistola • Lollo + Ivanone in 3 fasi su piattaforme mobili!",
         mode = BattleMode.MELEE_PLATFORMER,
@@ -586,13 +484,7 @@ object LevelCatalog {
         LEVEL_19,
         LEVEL_20,
         LEVEL_21,
-        LEVEL_22,
-        LEVEL_23,
-        LEVEL_24,
-        LEVEL_25,
-        LEVEL_26,
-        LEVEL_27,
-        LEVEL_28
+        LEVEL_22
     )
 
     fun findById(id: Int): BossLevel {

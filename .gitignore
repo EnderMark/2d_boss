@@ -5,6 +5,9 @@
 .DS_Store
 /build
 /app/build
+/shared/build
+/web/build
+/kotlin-js-store
 /captures
 .externalNativeBuild
 .cxx
