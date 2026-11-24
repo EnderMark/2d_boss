@@ -19,8 +19,8 @@ import org.junit.Test
 class BossBattleEngineTest {
 
     @Test
-    fun levelCatalogContainsAllTwentyFiveLevels() {
-        assertEquals(25, LevelCatalog.levels.size)
+    fun levelCatalogContainsAllTwentySixLevels() {
+        assertEquals(26, LevelCatalog.levels.size)
 
         val level21 = LevelCatalog.findById(21)
         assertEquals("DREADNOUGHT STELLARE", level21.bossName)
@@ -53,6 +53,13 @@ class BossBattleEngineTest {
         assertTrue(level25.enableGiantLollo)
         assertTrue(level25.enableFuriousLollo)
         assertTrue(level25.enableLasers)
+
+        val level26 = LevelCatalog.findById(26)
+        assertEquals("LOLLO TECH LEAD", level26.bossName)
+        assertEquals(BattleMode.FREE_FLIGHT_SHOOTER, level26.mode)
+        assertTrue(level26.multiPhase)
+        assertTrue(level26.enableMinions)
+        assertTrue(level26.enableTechLeadLollo)
         assertEquals(LevelCatalog.LEVEL_1, LevelCatalog.findById(999))
     }
 
@@ -807,5 +814,64 @@ class BossBattleEngineTest {
         repeat(70) { engine.update(0.05f) }
         assertFalse(engine.state.isLolloIngolfato)
         assertTrue(engine.state.projectiles.count { !it.fromPlayer } >= 8)
+    }
+
+    @Test
+    fun levelTwentySixTechLeadLolloThreePhasesKamikazeAndFarts() {
+        val engine = BossBattleEngine(level = LevelCatalog.LEVEL_26)
+        engine.startGame()
+
+        val boss = engine.state.boss
+        val player = engine.state.player
+        assertEquals(1, boss.phase)
+
+        // Advance time until kamikaze programmer spawns and chases player
+        repeat(120) { engine.update(0.05f) }
+        assertTrue(engine.state.minions.isNotEmpty())
+        val kamikaze = engine.state.minions.first()
+        val distBefore = kotlin.math.hypot(player.x - kamikaze.x, player.y - kamikaze.y)
+        engine.update(0.05f)
+        val distAfter = kotlin.math.hypot(player.x - kamikaze.x, player.y - kamikaze.y)
+        assertTrue(distAfter < distBefore)
+
+        // Kamikaze explodes on contact with player
+        player.invulnerableTimer = 0f
+        kamikaze.x = player.x
+        kamikaze.y = player.y
+        val minionsBefore = engine.state.minions.size
+        val hpBefore = player.hp
+        engine.update(0.016f)
+        assertEquals(minionsBefore - 1, engine.state.minions.size)
+        assertEquals(hpBefore - 1, player.hp)
+
+        // Drop HP to trigger Phase 2 (<= 66%) and Phase 3 (<= 33%), no armor reforged
+        boss.hp = (boss.maxHp * 0.65f).toInt()
+        engine.state.projectiles.add(
+            Projectile(x = boss.x, y = boss.y, vx = 0f, vy = 0f, radius = 12f, fromPlayer = true, damage = 10)
+        )
+        engine.update(0.016f)
+        assertEquals(2, boss.phase)
+        assertEquals(0, boss.armor)
+
+        boss.hp = (boss.maxHp * 0.32f).toInt()
+        engine.state.projectiles.add(
+            Projectile(x = boss.x, y = boss.y, vx = 0f, vy = 0f, radius = 12f, fromPlayer = true, damage = 10)
+        )
+        engine.update(0.016f)
+        assertEquals(3, boss.phase)
+        assertEquals(0, boss.armor)
+
+        // Phase 3: takes ONLY HALF damage (20 -> 10) and shoots FART_CLOUDs!
+        val phase3Hp = boss.hp
+        engine.state.projectiles.clear()
+        engine.state.projectiles.add(
+            Projectile(x = boss.x, y = boss.y, vx = 0f, vy = 0f, radius = 12f, fromPlayer = true, damage = 20)
+        )
+        engine.update(0.016f)
+        assertEquals(phase3Hp - 10, boss.hp)
+
+        boss.attackCooldown = 0.01f
+        engine.update(0.02f)
+        assertTrue(engine.state.projectiles.any { it.kind == ProjectileKind.FART_CLOUD })
     }
 }

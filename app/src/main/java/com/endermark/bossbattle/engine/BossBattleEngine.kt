@@ -491,7 +491,11 @@ class BossBattleEngine(
         }
 
         // Smooth orbital figure-8 flight across upper-central space
-        val speedScale = if (boss.isEnraged) 1.35f else 1.0f
+        val speedScale = when {
+            level.enableTechLeadLollo && boss.phase >= 3 -> 1.48f
+            boss.isEnraged -> 1.35f
+            else -> 1.0f
+        }
         val t = state.elapsedTime * speedScale
         val targetX = state.worldWidth * 0.5f + sin(t * 0.75f) * 290f
         val targetY = 440f + sin(t * 1.5f) * 115f
@@ -500,19 +504,112 @@ class BossBattleEngine(
 
         boss.attackCooldown -= dt
         if (boss.attackCooldown <= 0f) {
-            spawnDreadnoughtSalvo()
-            boss.attackCooldown = if (boss.isEnraged) {
-                level.bossEnragedAttackInterval
+            if (level.enableTechLeadLollo) {
+                spawnTechLeadSalvo()
             } else {
-                level.bossAttackInterval
+                spawnDreadnoughtSalvo()
+            }
+            boss.attackCooldown = when {
+                level.enableTechLeadLollo && boss.phase >= 3 -> level.bossEnragedAttackInterval * 0.85f
+                boss.isEnraged -> level.bossEnragedAttackInterval
+                else -> level.bossAttackInterval
             }
         }
 
         if (level.enableMinions) {
             minionSpawnTimer -= dt
-            if (minionSpawnTimer <= 0f && state.minions.size < MAX_ACTIVE_MINIONS) {
+            val maxMinions = if (level.enableTechLeadLollo && boss.phase >= 2) 4 else MAX_ACTIVE_MINIONS
+            if (minionSpawnTimer <= 0f && state.minions.size < maxMinions) {
                 spawnMinionShip()
-                minionSpawnTimer = if (boss.isEnraged) MINION_ENRAGED_SPAWN_INTERVAL else MINION_SPAWN_INTERVAL
+                minionSpawnTimer = when {
+                    level.enableTechLeadLollo && boss.phase >= 3 -> 3.6f
+                    level.enableTechLeadLollo && boss.phase == 2 -> 4.6f
+                    level.enableTechLeadLollo -> 5.6f
+                    boss.isEnraged -> MINION_ENRAGED_SPAWN_INTERVAL
+                    else -> MINION_SPAWN_INTERVAL
+                }
+            }
+        }
+    }
+
+    private fun spawnTechLeadSalvo() {
+        val boss = state.boss
+        val player = state.player
+        emitSound(GameSoundEvent.BOSS_ATTACK)
+        val speed = if (boss.phase >= 2) level.bossEnragedProjectileSpeed else level.bossProjectileSpeed
+        val baseAngle = atan2((player.y - boss.y).toDouble(), (player.x - boss.x).toDouble())
+
+        when (boss.phase) {
+            1 -> {
+                for (offset in listOf(-0.22, 0.22)) {
+                    val angle = baseAngle + offset
+                    state.projectiles.add(
+                        Projectile(
+                            x = boss.x + (cos(angle) * boss.radius * 0.7f).toFloat(),
+                            y = boss.y + (sin(angle) * boss.radius * 0.7f).toFloat(),
+                            vx = (cos(angle) * speed).toFloat(),
+                            vy = (sin(angle) * speed).toFloat(),
+                            radius = 24f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.COMPUTER,
+                            label = "PC"
+                        )
+                    )
+                }
+            }
+            2 -> {
+                val label = TECH_LEAD_QUOTES[complaintIndex % TECH_LEAD_QUOTES.size]
+                complaintIndex += 1
+                state.projectiles.add(
+                    Projectile(
+                        x = boss.x + (cos(baseAngle) * boss.radius * 0.7f).toFloat(),
+                        y = boss.y + (sin(baseAngle) * boss.radius * 0.7f).toFloat(),
+                        vx = (cos(baseAngle) * speed * 0.92f).toFloat(),
+                        vy = (sin(baseAngle) * speed * 0.92f).toFloat(),
+                        radius = 28f,
+                        fromPlayer = false,
+                        damage = 1,
+                        kind = ProjectileKind.COMPLAINT,
+                        label = label
+                    )
+                )
+                for (offset in listOf(-0.34, 0.34)) {
+                    val angle = baseAngle + offset
+                    state.projectiles.add(
+                        Projectile(
+                            x = boss.x + (cos(angle) * boss.radius * 0.7f).toFloat(),
+                            y = boss.y + (sin(angle) * boss.radius * 0.7f).toFloat(),
+                            vx = (cos(angle) * speed).toFloat(),
+                            vy = (sin(angle) * speed).toFloat(),
+                            radius = 24f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.COMPUTER,
+                            label = "PC"
+                        )
+                    )
+                }
+            }
+            else -> {
+                // Phase 3: Fart clouds + flying computers!
+                val fartLabels = listOf("PRRRRT!", "PFFFT!", "CHE PUZZA!")
+                for ((idx, offset) in listOf(-0.30, 0.0, 0.30).withIndex()) {
+                    val angle = baseAngle + offset
+                    state.projectiles.add(
+                        Projectile(
+                            x = boss.x + (cos(angle) * boss.radius * 0.7f).toFloat(),
+                            y = boss.y + (sin(angle) * boss.radius * 0.7f).toFloat(),
+                            vx = (cos(angle) * speed * 0.85f).toFloat(),
+                            vy = (sin(angle) * speed * 0.85f).toFloat(),
+                            radius = 34f,
+                            fromPlayer = false,
+                            damage = 1,
+                            kind = ProjectileKind.FART_CLOUD,
+                            label = fartLabels[idx % fartLabels.size]
+                        )
+                    )
+                }
             }
         }
     }
@@ -791,6 +888,16 @@ class BossBattleEngine(
             val dy = player.y - minion.y
             val dist = hypot(dx, dy).coerceAtLeast(1f)
             minion.angle = atan2(dy.toDouble(), dx.toDouble()).toFloat()
+
+            if (level.enableTechLeadLollo) {
+                // Kamikaze programmer minions rush straight at the player!
+                val kamikazeSpeed = if (state.boss.phase >= 3) 295f else 255f
+                minion.vx = (dx / dist) * kamikazeSpeed
+                minion.vy = (dy / dist) * kamikazeSpeed
+                minion.x = (minion.x + minion.vx * dt).coerceIn(minion.radius + 20f, state.worldWidth - minion.radius - 20f)
+                minion.y = (minion.y + minion.vy * dt).coerceIn(210f, state.worldHeight - minion.radius - 20f)
+                continue
+            }
 
             // Approach player smoothly and orbit at mid-range
             val speed = MINION_SPEED
@@ -1528,8 +1635,15 @@ class BossBattleEngine(
                 if (state.status != GameStatus.PLAYING) return
             } else {
                 var hitBody = false
-                for (minion in state.minions) {
+                val bodyMinionIter = state.minions.iterator()
+                while (bodyMinionIter.hasNext()) {
+                    val minion = bodyMinionIter.next()
                     if (circlesCollide(player.x, player.y, player.radius * 0.85f, minion.x, minion.y, minion.radius * 0.85f)) {
+                        if (level.enableTechLeadLollo) {
+                            bodyMinionIter.remove()
+                            emitSound(GameSoundEvent.ARMOR_BREAK)
+                            spawnHitParticles(minion.x, minion.y, COLOR_BOSS_HIT_SPARK, 18)
+                        }
                         applyDamageToPlayer(1)
                         if (state.status != GameStatus.PLAYING) return
                         hitBody = true
@@ -1593,7 +1707,13 @@ class BossBattleEngine(
             return
         }
 
-        boss.hp = max(0, boss.hp - damage)
+        // Level 26 Tech Lead Lollo takes half damage in Phase 3!
+        val effectiveDamage = if (level.enableTechLeadLollo && boss.phase >= 3) {
+            max(1, damage / 2)
+        } else {
+            damage
+        }
+        boss.hp = max(0, boss.hp - effectiveDamage)
         spawnHitParticles(hitX, hitY, color = COLOR_BOSS_HIT_SPARK, count = 8)
 
         if (boss.hp <= 0) {
@@ -1609,14 +1729,18 @@ class BossBattleEngine(
 
         emitSound(GameSoundEvent.BOSS_HIT)
 
-        // Multi-phase transitions: reforge armor at Phase 2 (66%) and Phase 3 (33%)
+        // Multi-phase transitions: Phase 2 (66%) and Phase 3 (33%)
         if (level.multiPhase) {
             val isOmega = level.arenaTheme == ArenaTheme.OMEGA_FINALE
             if (boss.phase == 1 && boss.hpRatio <= 0.66f) {
                 boss.phase = 2
-                val newArmor = if (isOmega) 70 else 50
-                boss.armor = newArmor
-                boss.maxArmor = newArmor
+                if (!level.enableTechLeadLollo) {
+                    val newArmor = if (isOmega) 70 else 50
+                    boss.armor = newArmor
+                    boss.maxArmor = newArmor
+                } else {
+                    state.phaseFlashTimer = 0.45f
+                }
                 boss.stunTimer = 0f
                 if (isOmega) {
                     state.phaseFlashTimer = 0.5f
@@ -1626,9 +1750,13 @@ class BossBattleEngine(
                 spawnHitParticles(boss.x, boss.y, color = COLOR_ARMOR_SPARK, count = 18)
             } else if (boss.phase == 2 && boss.hpRatio <= 0.33f) {
                 boss.phase = 3
-                val newArmor = if (isOmega) 60 else 40
-                boss.armor = newArmor
-                boss.maxArmor = newArmor
+                if (!level.enableTechLeadLollo) {
+                    val newArmor = if (isOmega) 60 else 40
+                    boss.armor = newArmor
+                    boss.maxArmor = newArmor
+                } else {
+                    state.phaseFlashTimer = 0.60f
+                }
                 boss.stunTimer = 0f
                 if (isOmega) {
                     state.phaseFlashTimer = 0.6f
@@ -2610,6 +2738,14 @@ class BossBattleEngine(
             "SONO PIENO DI MILIONI!!",
             "MATCH SU HINGE?",
             "CENA STELLATA? PAGO IO!"
+        )
+
+        val TECH_LEAD_QUOTES = listOf(
+            "RIFAI LA PR!",
+            "NON SCALA!",
+            "STANDUP ALLE 8!",
+            "DOV'È IL DESIGN DOC?",
+            "LGTM... SCHERZAVO!"
         )
 
         const val COLOR_BOSS_HIT_SPARK = 0xFFFFD54F.toInt()

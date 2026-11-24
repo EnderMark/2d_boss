@@ -31,7 +31,8 @@ enum class ProjectileKind {
     HOT_STONE,
     COMPUTER,
     SOFA,
-    TV
+    TV,
+    FART_CLOUD
 }
 
 enum class WeaponType(val displayName: String) {

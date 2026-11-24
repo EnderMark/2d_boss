@@ -540,6 +540,7 @@ class GameRenderer {
                 ArenaTheme.OMEGA_FINALE -> drawOmegaBoss(canvas, state.boss, state.elapsedTime)
                 ArenaTheme.DEEP_SPACE -> {
                     when {
+                        state.level.enableTechLeadLollo -> drawTechLeadLolloBoss(canvas, state)
                         state.level.enableGiantLollo -> drawGiantLolloBoss(canvas, state)
                         state.level.enableTurretFortress -> drawMegaTurretBoss(canvas, state)
                         else -> {
@@ -1487,6 +1488,23 @@ class GameRenderer {
                     tempRect.set(x + r * 0.72f, y - r * 0.22f, x + r * 1.08f, y + r * 0.52f)
                     canvas.drawRoundRect(tempRect, 8f, 8f, bossArmorPaint)
                     canvas.drawRoundRect(tempRect, 8f, 8f, bossOutlinePaint)
+                }
+                ProjectileKind.FART_CLOUD -> {
+                    val x = projectile.x
+                    val y = projectile.y
+                    val r = projectile.radius
+                    // Bubbly toxic green fart cloud
+                    bossArmorPaint.color = Color.argb(210, 118, 255, 3)
+                    canvas.drawCircle(x, y, r * 0.92f, bossArmorPaint)
+                    canvas.drawCircle(x - r * 0.52f, y + r * 0.16f, r * 0.62f, bossArmorPaint)
+                    canvas.drawCircle(x + r * 0.52f, y + r * 0.16f, r * 0.62f, bossArmorPaint)
+                    canvas.drawCircle(x, y - r * 0.42f, r * 0.58f, bossArmorPaint)
+                    bossCorePaint.color = Color.argb(190, 178, 255, 89)
+                    canvas.drawCircle(x, y, r * 0.55f, bossCorePaint)
+                    val label = projectile.label
+                    if (label != null) {
+                        canvas.drawText(label, x, y + 8f, speechBubbleTextPaint)
+                    }
                 }
                 ProjectileKind.BOSS_ORB -> {
                     canvas.drawCircle(projectile.x, projectile.y, projectile.radius, bossShotOuterPaint)
@@ -2560,9 +2578,106 @@ class GameRenderer {
         phaseBadgePaint.textAlign = Paint.Align.LEFT
     }
 
+    private fun drawTechLeadLolloBoss(canvas: Canvas, state: GameState) {
+        val boss = state.boss
+        val x = boss.x
+        val y = boss.y
+        val r = boss.radius
+        val isHit = boss.hitFlashTimer > 0f
+        val isPhase3 = boss.phase >= 3
+
+        // Phase 3 toxic green armor aura (-50% damage taken!)
+        if (isPhase3) {
+            val auraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(185, 118, 255, 3)
+                style = Paint.Style.STROKE
+                strokeWidth = 11f
+            }
+            val pulseR = r * (1.22f + 0.04f * sin(state.elapsedTime * 10f))
+            canvas.drawCircle(x, y, pulseR, auraPaint)
+        }
+
+        // Crisp white corporate shirt torso below head
+        bossArmorPaint.color = if (isHit) Color.WHITE else Color.parseColor("#ECEFF1")
+        tempRect.set(x - r * 0.78f, y + r * 0.32f, x + r * 0.78f, y + r * 1.15f)
+        canvas.drawRoundRect(tempRect, 22f, 22f, bossArmorPaint)
+        canvas.drawRoundRect(tempRect, 22f, 22f, bossOutlinePaint)
+
+        // Bright red Tech Lead tie (cravatta!)
+        bossCorePaint.color = if (isHit) Color.WHITE else Color.parseColor("#D50000")
+        tempPath.reset()
+        tempPath.moveTo(x - 14f, y + r * 0.42f)
+        tempPath.lineTo(x + 14f, y + r * 0.42f)
+        tempPath.lineTo(x + 22f, y + r * 0.96f)
+        tempPath.lineTo(x, y + r * 1.18f)
+        tempPath.lineTo(x - 22f, y + r * 0.96f)
+        tempPath.close()
+        canvas.drawPath(tempPath, bossCorePaint)
+        canvas.drawPath(tempPath, bossOutlinePaint)
+        // Tie knot
+        canvas.drawCircle(x, y + r * 0.44f, 13f, bossCorePaint)
+        canvas.drawCircle(x, y + r * 0.44f, 13f, bossOutlinePaint)
+
+        // Bald head
+        bossArmorPaint.color = when {
+            isHit -> Color.WHITE
+            isPhase3 -> Color.parseColor("#DCE775")
+            else -> Color.parseColor("#FFCC99")
+        }
+        canvas.drawCircle(x, y - r * 0.10f, r * 0.66f, bossArmorPaint)
+        canvas.drawCircle(x, y - r * 0.10f, r * 0.66f, bossOutlinePaint)
+        // Bald scalp shine
+        tempRect.set(x - r * 0.30f, y - r * 0.60f, x + r * 0.08f, y - r * 0.36f)
+        canvas.drawOval(tempRect, swissCrossWhitePaint)
+
+        // Tech Lead glasses
+        val eyeY = y - r * 0.14f
+        tempRect.set(x - r * 0.42f, eyeY - 14f, x - r * 0.06f, eyeY + 14f)
+        canvas.drawRoundRect(tempRect, 6f, 6f, swissCrossWhitePaint)
+        canvas.drawRoundRect(tempRect, 6f, 6f, bossOutlinePaint)
+        tempRect.set(x + r * 0.06f, eyeY - 14f, x + r * 0.42f, eyeY + 14f)
+        canvas.drawRoundRect(tempRect, 6f, 6f, swissCrossWhitePaint)
+        canvas.drawRoundRect(tempRect, 6f, 6f, bossOutlinePaint)
+        canvas.drawLine(x - r * 0.06f, eyeY, x + r * 0.06f, eyeY, bossOutlinePaint)
+        canvas.drawCircle(x - r * 0.24f, eyeY, 6f, chanHairPaint)
+        canvas.drawCircle(x + r * 0.24f, eyeY, 6f, chanHairPaint)
+
+        // Mouth
+        bossCorePaint.color = Color.parseColor("#B71C1C")
+        tempRect.set(x - r * 0.22f, y + r * 0.12f, x + r * 0.22f, y + r * 0.30f)
+        canvas.drawOval(tempRect, bossCorePaint)
+
+        // Phase status banner under boss HP bar
+        val statusText = when (boss.phase) {
+            1 -> "FASE 1 • PROGRAMMATORI KAMIKAZE"
+            2 -> "FASE 2 • CODE REVIEW SPIETATA"
+            else -> "FASE 3 • -50% DANNI • SCORREGGE TOSSICHE!"
+        }
+        phaseBadgePaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(statusText, state.worldWidth - 52f, 162f, phaseBadgePaint)
+        phaseBadgePaint.textAlign = Paint.Align.LEFT
+    }
+
     private fun drawMinions(canvas: Canvas, state: GameState) {
         for (minion in state.minions) {
             val r = minion.radius
+            if (state.level.enableTechLeadLollo) {
+                // Kamikaze programmer minion (hoodie, glasses, red kamikaze ring)
+                val x = minion.x
+                val y = minion.y
+                canvas.drawCircle(x, y, r * 1.15f, controlAttackBorderPaint)
+                bossArmorPaint.color = if (minion.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#263238")
+                canvas.drawCircle(x, y + 6f, r * 0.85f, bossArmorPaint)
+                bossArmorPaint.color = if (minion.hitFlashTimer > 0f) Color.WHITE else Color.parseColor("#FFCC99")
+                canvas.drawCircle(x, y - 6f, r * 0.52f, bossArmorPaint)
+                // Tiny glasses + glowing code screen
+                canvas.drawRect(x - 11f, y - 10f, x - 2f, y - 3f, swissCrossWhitePaint)
+                canvas.drawRect(x + 2f, y - 10f, x + 11f, y - 3f, swissCrossWhitePaint)
+                bossCorePaint.color = Color.parseColor("#00E676")
+                canvas.drawRect(x - 10f, y + 8f, x + 10f, y + 18f, bossCorePaint)
+                continue
+            }
+
             canvas.save()
             canvas.translate(minion.x, minion.y)
             canvas.rotate(Math.toDegrees(minion.angle.toDouble()).toFloat() + 90f)

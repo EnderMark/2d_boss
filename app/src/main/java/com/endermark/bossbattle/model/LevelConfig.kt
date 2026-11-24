@@ -41,6 +41,7 @@ data class BossLevel(
     val enableTurretFortress: Boolean = false,
     val enableGiantLollo: Boolean = false,
     val enableFuriousLollo: Boolean = false,
+    val enableTechLeadLollo: Boolean = false,
     val bossBaseSpeed: Float,
     val bossAttackInterval: Float,
     val bossEnragedAttackInterval: Float,
@@ -502,6 +503,26 @@ object LevelCatalog {
         isUnlocked = true
     )
 
+    val LEVEL_26 = BossLevel(
+        id = 26,
+        title = "LIVELLO 26 • TECH LEAD",
+        bossName = "LOLLO TECH LEAD",
+        subtitle = "Pad 360° • Cravatta, 3 fasi, programmatori kamikaze e scorregge in Fase 3!",
+        mode = BattleMode.FREE_FLIGHT_SHOOTER,
+        arenaTheme = ArenaTheme.DEEP_SPACE,
+        hasShield = false,
+        bossMaxHp = 330,
+        multiPhase = true,
+        enableMinions = true,
+        enableTechLeadLollo = true,
+        bossBaseSpeed = 165f,
+        bossAttackInterval = 1.45f,
+        bossEnragedAttackInterval = 1.05f,
+        bossProjectileSpeed = 460f,
+        bossEnragedProjectileSpeed = 550f,
+        isUnlocked = true
+    )
+
     val levels: List<BossLevel> = listOf(
         LEVEL_1,
         LEVEL_2,
@@ -527,7 +548,8 @@ object LevelCatalog {
         LEVEL_22,
         LEVEL_23,
         LEVEL_24,
-        LEVEL_25
+        LEVEL_25,
+        LEVEL_26
     )
 
     fun findById(id: Int): BossLevel {
